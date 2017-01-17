@@ -113,5 +113,13 @@ func parseCommand(s string) command {
 }
 
 func executeCommand(cmd command) error {
+	switch cmd.name {
+	case "ADD":
+		// do ADD
+		break
+	default:
+		log.Noticef("Not implemented: %s", cmd.name)
+	}
+
 	return nil
 }
