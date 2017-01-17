@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"os"
 	"strconv"
@@ -17,9 +18,67 @@ var (
 	logLevel = flag.Int("loglevel", 4, "CRITICAL: 0, ERROR: 1, WARNING: 2, NOTICE: 3, INFO: 4, DEBUG: 5")
 )
 
+// All valid command names
+type commandType int
+
+// Command enum!
+const (
+	Add commandType = iota
+	Quote
+	Buy
+	CommitBuy
+	CancelBuy
+	Sell
+	CommitSell
+	CancelSell
+	SetBuyAmount
+	CancelSetBuy
+	SetBuyTrigger
+	SetSellAmount
+	SetSellTrigger
+	CancelSetSell
+	DisplaySummary
+	DumpLog
+)
+
+var commandNames = []string{
+	"ADD",
+	"QUOTE",
+	"BUY",
+	"COMMIT_BUY",
+	"CANCEL_BUY",
+	"SELL",
+	"COMMIT_SELL",
+	"CANCEL_SELL",
+	"SET_BUY_AMOUNT",
+	"CANCEL_SET_BUY",
+	"SET_BUY_TRIGGER",
+	"SET_SELL_AMOUNT",
+	"SET_SELL_TRIGGER",
+	"CANCEL_SET_SELL",
+	"DISPLAY_SUMMARY",
+	"DUMPLOG",
+}
+
+// String representation of the commandType enum
+func (c commandType) String() string {
+	return commandNames[c]
+}
+
+// Convert string -> commandType enum
+func toCommandType(cmd string) (commandType, error) {
+	for i, name := range commandNames {
+		if strings.EqualFold(name, cmd) {
+			return commandType(i), nil
+		}
+	}
+
+	return commandType(0), errors.New("Not a valid command type")
+}
+
 type command struct {
 	ID     int
-	name   string
+	name   commandType
 	userID string
 	args   []string
 }
@@ -52,7 +111,7 @@ func main() {
 	}
 	defer file.Close()
 
-	log.Debugf("Opened %s", file.Name())
+	log.Infof("Opened %s", file.Name())
 
 	// process all lines
 	scanner := bufio.NewScanner(file)
@@ -69,6 +128,8 @@ func main() {
 		log.Critical(err.Error())
 		os.Exit(1)
 	}
+
+	log.Info("Done!")
 }
 
 func initLogging() {
@@ -110,9 +171,10 @@ func parseCommand(s string) command {
 	// Almost all commands will follow this format
 	// TODO: Deal with the final "DUMPLOG,./testLOG"
 	ID, _ := strconv.Atoi(parts[0])
+	name, _ := toCommandType(parts[1])
 	parsed := command{
 		ID:     ID,
-		name:   parts[1],
+		name:   name,
 		userID: parts[2],
 		args:   parts[3:],
 	}
@@ -124,12 +186,15 @@ func parseCommand(s string) command {
 
 func executeCommand(cmd command) error {
 	switch cmd.name {
-	case "ADD":
+	case Add:
 		// do ADD
 		break
 	default:
 		log.Noticef("Not implemented: %s", cmd.name)
+		return nil
 	}
+
+	log.Infof("Finished command %d", cmd.ID)
 
 	return nil
 }
