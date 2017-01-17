@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"flag"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -17,7 +18,7 @@ import (
 var (
 	log = logging.MustGetLogger("audit")
 
-	logLevel = flag.Int("loglevel", 2, "CRITICAL: 0, ERROR: 1, WARNING: 2, NOTICE: 3, INFO: 4, DEBUG: 5")
+	logLevel = flag.String("loglevel", "WARNING", "CRITICAL, ERROR, WARNING,  NOTICE, INFO, DEBUG")
 
 	accountStore = accounts.NewAccountStore()
 )
@@ -89,8 +90,12 @@ func initLogging() {
 	consoleBackendFormatted := logging.NewBackendFormatter(consoleBackend, consoleFormat)
 
 	// Add leveled logging
+	level, err := logging.LogLevel(*logLevel)
+	if err != nil {
+		fmt.Println("Bad log level. Using default.") // ERROR
+	}
 	consoleBackendFormattedAndLeveled := logging.AddModuleLevel(consoleBackendFormatted)
-	consoleBackendFormattedAndLeveled.SetLevel(logging.Level(*logLevel), "")
+	consoleBackendFormattedAndLeveled.SetLevel(level, "")
 
 	// Attach the backend
 	logging.SetBackend(consoleBackendFormattedAndLeveled)
