@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"os"
 	"strconv"
 	"strings"
@@ -12,6 +13,8 @@ import (
 // Globals
 var (
 	log = logging.MustGetLogger("audit")
+
+	logLevel = flag.Int("loglevel", 4, "CRITICAL: 0, ERROR: 1, WARNING: 2, NOTICE: 3, INFO: 4, DEBUG: 5")
 )
 
 type command struct {
@@ -22,6 +25,7 @@ type command struct {
 }
 
 func main() {
+	flag.Parse()
 	initLogging()
 
 	// Find the workload file and open it
@@ -31,7 +35,7 @@ func main() {
 	// -    log it
 
 	// naïvely assume this is the workload file
-	infile := os.Args[1]
+	infile := flag.Arg(0)
 	if _, err := os.Stat(infile); os.IsNotExist(err) {
 		// can't find input; bail!
 		log.Critical(err.Error())
@@ -69,18 +73,24 @@ func main() {
 
 func initLogging() {
 	// TODO: DONE 1. Make a logger that outputs to console
-	// TODO: 2. Set variable output levels based on runtime flag
+	// TODO: DONE 2. Set variable output levels based on runtime flag
 	// TODO: 3. Log stuff into a file
 
+	// Create a default backend
 	consoleBackend := logging.NewLogBackend(os.Stdout, "", 0)
 
+	// Add output formatting
 	var consoleFormat = logging.MustStringFormatter(
 		`%{time:15:04:05.000} %{color}▶ %{level:8s}%{color:reset} %{id:03d} %{shortfile} %{message}`,
 	)
+	consoleBackendFormatted := logging.NewBackendFormatter(consoleBackend, consoleFormat)
 
-	consoleBackendFormatter := logging.NewBackendFormatter(consoleBackend, consoleFormat)
+	// Add leveled logging
+	consoleBackendFormattedAndLeveled := logging.AddModuleLevel(consoleBackendFormatted)
+	consoleBackendFormattedAndLeveled.SetLevel(logging.Level(*logLevel), "")
 
-	logging.SetBackend(consoleBackendFormatter)
+	// Attach the backend
+	logging.SetBackend(consoleBackendFormattedAndLeveled)
 }
 
 func parseCommand(s string) command {
