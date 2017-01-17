@@ -1,0 +1,6 @@
+# Probably data files
+*.csv
+*.txt
+
+# Debugger output
+debug

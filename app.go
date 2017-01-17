@@ -9,6 +9,7 @@ import (
 
 	"github.com/op/go-logging"
 
+	"github.com/distributeddesigns/milestone1/accounts"
 	"github.com/distributeddesigns/milestone1/commands"
 )
 
@@ -16,7 +17,9 @@ import (
 var (
 	log = logging.MustGetLogger("audit")
 
-	logLevel = flag.Int("loglevel", 4, "CRITICAL: 0, ERROR: 1, WARNING: 2, NOTICE: 3, INFO: 4, DEBUG: 5")
+	logLevel = flag.Int("loglevel", 2, "CRITICAL: 0, ERROR: 1, WARNING: 2, NOTICE: 3, INFO: 4, DEBUG: 5")
+
+	accountStore = accounts.NewAccountStore()
 )
 
 // I suck at namespacing and don't want to type commands.Command over and over
@@ -124,16 +127,70 @@ func parseCommand(s string) command {
 }
 
 func executeCommand(cmd command) error {
+	// Each command will return true if everything is okay, false if error
+	var status bool
+
+	// Filter based on the "enum" of command names
 	switch cmd.Name {
 	case commands.Add:
-		// do ADD
+		status = executeAdd(cmd)
 		break
 	default:
-		log.Noticef("Not implemented: %s", cmd.Name)
+		log.Warningf("Not implemented: %s", cmd.Name)
 		return nil
 	}
 
-	log.Infof("Finished command %d", cmd.ID)
+	// report our status
+	if status {
+		log.Infof("Finished command %d", cmd.ID)
+	} else {
+		log.Infof("Finished command %d with errors", cmd.ID)
+	}
 
 	return nil
+}
+
+// Add funds to the user's account
+func executeAdd(cmd command) bool {
+	// Finish parsing the rest of the command.
+	// ADD should have an amount passed
+
+	// Sanitize the command
+	if len(cmd.Args) != 1 {
+		// too many
+		log.Errorf("Wrong number of commands: `%s`", cmd.Args)
+		return false
+	} else if cmd.Args[0] == "" {
+		// missing
+		log.Error("No amount passed to ADD")
+		return false
+	}
+
+	// Convert to a float
+	amount, err := strconv.ParseFloat(cmd.Args[0], 64)
+	if err != nil {
+		// Bail on parse failure
+		log.Error(err.Error())
+		return false
+	}
+
+	// Create an account if the user needs one
+	if !accountStore.HasAccount(cmd.UserID) {
+		log.Noticef("Creating account for %s", cmd.UserID)
+		if err := accountStore.CreateAccount(cmd.UserID); err != nil {
+			log.Error(err.Error())
+			return false
+		}
+	}
+
+	// Add the amount
+	log.Infof("Adding %.2f to %s", amount, cmd.UserID)
+	if err := accountStore.Accounts[cmd.UserID].AddFunds(amount); err != nil {
+		log.Error(err.Error())
+		return false
+	}
+	balance := accountStore.Accounts[cmd.UserID].Balance
+	log.Infof("New balance for %s is %.2f", cmd.UserID, balance)
+
+	return true
 }
