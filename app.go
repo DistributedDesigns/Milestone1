@@ -214,11 +214,13 @@ func executeQuote(cmd command) bool {
 	}
 
 	// get a quote for the stock. (cache will determine if a fresh one is needed)
-	_, err := quotecache.GetQuote(cmd.UserID, stock)
+	quote, err := quotecache.GetQuote(cmd.UserID, stock)
 	if err != nil {
 		log.Error(err.Error())
 		return false
 	}
+
+	log.Debugf("Got quote: %+v", quote)
 	// send the quote to the user
 	return true
 }

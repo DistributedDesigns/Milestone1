@@ -2,9 +2,13 @@ package quotecache
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -38,10 +42,20 @@ func GetQuote(userID, stock string) (Quote, error) {
 	conn.Write([]byte(request))
 
 	// listen for response
-	message, _ := bufio.NewReader(conn).ReadString('\n')
-	fmt.Println("From server:", message)
+	message, err := bufio.NewReader(conn).ReadString('\n')
+	// when stream is done an EOF is omitted that we should ignore
+	if err != nil && err != io.EOF {
+		errMessage := fmt.Sprint("Bufio reader says:", err.Error())
+		return Quote{}, errors.New(errMessage)
+	}
 
-	return Quote{}, nil
+	// Convert the raw response to a Quote
+	quote, err := parseQuote(message)
+	if err != nil {
+		return Quote{}, err
+	}
+
+	return quote, nil
 }
 
 // Returns the appropriate URL & Port based on the run environment.
@@ -58,4 +72,35 @@ func getQuoteServAddress() string {
 	}
 
 	return address
+}
+
+func parseQuote(s string) (Quote, error) {
+	parts := strings.Split(s, ",")
+
+	// Does the response have all the parts we need?
+	if len(parts) != 5 {
+		return Quote{}, errors.New("Incorrect number of fields returned by quoteserver")
+	}
+
+	// Convert string values from response to proper types
+	price, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil {
+		return Quote{}, err
+	}
+
+	// Unix time has to be converted string -> int -> Time
+	unixTimeInt, err := strconv.ParseInt(parts[3], 10, 64)
+	if err != nil {
+		return Quote{}, err
+	}
+
+	quote := Quote{
+		Price:     price,
+		Stock:     parts[1],
+		UserID:    parts[2],
+		Timestamp: time.Unix(unixTimeInt, 0),
+		Cryptokey: parts[4],
+	}
+
+	return quote, nil
 }
