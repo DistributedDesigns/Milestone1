@@ -220,7 +220,7 @@ func executeQuote(cmd command) bool {
 		return false
 	}
 
-	log.Debugf("Got quote: %+v", quote)
+	log.Noticef("Got quote: %+v", quote)
 	// send the quote to the user
 	return true
 }

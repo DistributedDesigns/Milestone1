@@ -21,19 +21,39 @@ type Quote struct {
 	Cryptokey string
 }
 
+// IsExpired : True if the quotes timestamp is older than its validity window
+func (q Quote) IsExpired() bool {
+	expiry := q.Timestamp.Add(time.Second * 45)
+	return time.Now().After(expiry)
+}
+
 // Global to store cached responses.
 // Maps stock name -> Quote
 var cache = make(map[string]Quote)
 
 // GetQuote : Gets the current value of the stock, hitting the local cache if it can.
 func GetQuote(userID, stock string) (Quote, error) {
-	// check if stock is in cache
-	//   - yes, check time
-	//   - no, or expired: get new quote and save to cache
+	// check if the value is in cache
+	quote, found := cache[stock]
 
+	if !found || quote.IsExpired() {
+		err := updateQuoteCache(userID, stock)
+		if err != nil {
+			return Quote{}, errors.New(err.Error())
+		}
+
+		// assign the refreshed value
+		quote = cache[stock]
+	}
+
+	return quote, nil
+}
+
+// Refreshes the stock in the global quote cache
+func updateQuoteCache(userID, stock string) error {
 	conn, err := net.DialTimeout("tcp", getQuoteServAddress(), time.Second*10)
 	if err != nil {
-		return Quote{}, err
+		return err
 	}
 	defer conn.Close()
 
@@ -46,16 +66,18 @@ func GetQuote(userID, stock string) (Quote, error) {
 	// when stream is done an EOF is omitted that we should ignore
 	if err != nil && err != io.EOF {
 		errMessage := fmt.Sprint("Bufio reader says:", err.Error())
-		return Quote{}, errors.New(errMessage)
+		return errors.New(errMessage)
 	}
 
 	// Convert the raw response to a Quote
 	quote, err := parseQuote(message)
 	if err != nil {
-		return Quote{}, err
+		return err
 	}
 
-	return quote, nil
+	cache[stock] = quote
+
+	return nil
 }
 
 // Returns the appropriate URL & Port based on the run environment.
