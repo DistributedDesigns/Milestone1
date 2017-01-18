@@ -144,6 +144,10 @@ func executeCommand(cmd command) error {
 	case commands.Quote:
 		status = executeQuote(cmd)
 		break
+	case commands.Buy:
+		status = executeBuy(cmd)
+	case commands.Sell:
+		status = executeSell(cmd)
 	default:
 		log.Warningf("Not implemented: %s", cmd.Name)
 		return nil
@@ -224,3 +228,25 @@ func executeQuote(cmd command) bool {
 	// send the quote to the user
 	return true
 }
+
+func executeBuy(cmd command) bool {
+	//Gotta check users money and add a reserved portion
+	account := accountStore.GetAccount(cmd.UserID)
+
+	if account == nil {
+		log.Noticef("User %s does not have an account", account)
+	}
+
+	return account.AddToBuyQueue(cmd.Args[0])
+}
+
+func executeSell(cmd command) bool {
+	account := accountStore.GetAccount(cmd.UserID)
+
+	if account == nil {
+		log.Noticef("User %s does not have an account", account)
+	}
+
+	return account.AddToSellQueue(cmd.Args[0])
+}
+
