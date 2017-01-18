@@ -28,15 +28,6 @@ var (
 // I suck at namespacing and don't want to type commands.Command over and over
 type command commands.Command
 
-type BuyAction struct {
-	time	time.Time
-	stock	string
-}
-
-var userToBuyMap = make(map[string][]BuyAction)
-
-var userToSellMap = make(map[string][]string)
-
 func main() {
 	flag.Parse()
 	initLogging()
