@@ -243,7 +243,7 @@ func executeBuy(cmd command) bool {
 func executeSell(cmd command) bool {
 	account := accountStore.GetAccount(cmd.UserID)
 
-	if account != nil {
+	if account == nil {
 		log.Noticef("User %s does not have an account", account)
 	}
 
