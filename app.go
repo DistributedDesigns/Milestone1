@@ -12,6 +12,7 @@ import (
 
 	"github.com/distributeddesigns/milestone1/accounts"
 	"github.com/distributeddesigns/milestone1/commands"
+	"github.com/distributeddesigns/milestone1/quotecache"
 )
 
 // Globals
@@ -141,6 +142,7 @@ func executeCommand(cmd command) error {
 		status = executeAdd(cmd)
 		break
 	case commands.Quote:
+		status = executeQuote(cmd)
 		break
 	default:
 		log.Warningf("Not implemented: %s", cmd.Name)
@@ -203,3 +205,20 @@ func executeAdd(cmd command) bool {
 }
 
 // Gets a quote from the quoteserver
+func executeQuote(cmd command) bool {
+	// Get the stock from the command
+	stock := cmd.Args[0]
+	if stock == "" {
+		log.Error("No stock passed to QUOTE")
+		return false
+	}
+
+	// get a quote for the stock. (cache will determine if a fresh one is needed)
+	_, err := quotecache.GetQuote(cmd.UserID, stock)
+	if err != nil {
+		log.Error(err.Error())
+		return false
+	}
+	// send the quote to the user
+	return true
+}
