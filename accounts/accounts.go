@@ -19,7 +19,6 @@ type SellAction struct {
 // Account : State of a particular account
 type Account struct {
 	Balance float64
-	ReservedCash float64
 	BuyQueue []BuyAction
 	SellQueue []SellAction
 }

@@ -39,7 +39,7 @@ func GetQuote(userID, stock string) (Quote, error) {
 	if !found || quote.IsExpired() {
 		err := updateQuoteCache(userID, stock)
 		if err != nil {
-			return Quote{}, errors.New(err.Error())
+			return Quote{}, err
 		}
 
 		// assign the refreshed value

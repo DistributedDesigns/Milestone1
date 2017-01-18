@@ -250,4 +250,3 @@ func executeSell(cmd command) bool {
 	return account.AddToSellQueue(cmd.Args[0])
 }
 
-
