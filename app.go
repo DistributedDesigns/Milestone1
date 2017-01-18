@@ -10,9 +10,9 @@ import (
 
 	"github.com/op/go-logging"
 
-	"github.com/distributeddesigns/milestone1/accounts"
-	"github.com/distributeddesigns/milestone1/commands"
-	"github.com/distributeddesigns/milestone1/quotecache"
+	"./accounts"
+	"./commands"
+	"./quotecache"
 )
 
 // Globals
