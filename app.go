@@ -54,7 +54,7 @@ func main() {
 	}
 	defer file.Close()
 
-	log.Infof("Opened %s", file.Name())
+	log.Debugf("Opened %s", file.Name())
 
 	// process all lines
 	scanner := bufio.NewScanner(file)
@@ -72,7 +72,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Info("Done!")
+	log.Debugf("Done!")
 }
 
 func initLogging() {
@@ -140,6 +140,8 @@ func executeCommand(cmd command) error {
 	case commands.Add:
 		status = executeAdd(cmd)
 		break
+	case commands.Quote:
+		break
 	default:
 		log.Warningf("Not implemented: %s", cmd.Name)
 		return nil
@@ -147,9 +149,9 @@ func executeCommand(cmd command) error {
 
 	// report our status
 	if status {
-		log.Infof("Finished command %d", cmd.ID)
+		log.Debugf("Finished command %d", cmd.ID)
 	} else {
-		log.Infof("Finished command %d with errors", cmd.ID)
+		log.Debugf("Finished command %d with errors", cmd.ID)
 	}
 
 	return nil
@@ -199,3 +201,5 @@ func executeAdd(cmd command) bool {
 
 	return true
 }
+
+// Gets a quote from the quoteserver
