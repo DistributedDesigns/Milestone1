@@ -13,6 +13,7 @@ import (
 	"./accounts"
 	"./commands"
 	"./quotecache"
+	"./currency"
 )
 
 // Globals
@@ -26,6 +27,7 @@ var (
 
 // I suck at namespacing and don't want to type commands.Command over and over
 type command commands.Command
+type Currency currency.Currency
 
 func main() {
 	flag.Parse()
