@@ -126,3 +126,13 @@ func (a *Account) AddFunds(amount int64) error {
 
 	return nil
 }
+
+func (a *Account) RemoveFunds(amount int64) error {
+	if a.Balance - amount < 0 {
+		return errors.New("Insufficient Funds")
+	}
+
+	a.Balance -= amount
+
+	return nil
+}

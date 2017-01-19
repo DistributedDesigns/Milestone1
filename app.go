@@ -251,6 +251,7 @@ func executeBuy(cmd command) bool {
 
 	wholeShares := currency.GetWholeShares(dollarAmount, userQuote.Price)
 
+	account.RemoveFunds(userQuote.Price * int64(wholeShares))
 	if account == nil {
 		log.Noticef("User %s does not have an account", account)
 	}
