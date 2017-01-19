@@ -3,7 +3,14 @@ package accounts
 import (
 	"errors"
 	"time"
+
+	"github.com/op/go-logging"
+
 	"Milestone1/currency"
+)
+
+var (
+	log = logging.MustGetLogger("audit")
 )
 
 type BuyAction struct {
@@ -23,6 +30,7 @@ type Account struct {
 	Balance	currency.Currency
 	BuyQueue []BuyAction
 	SellQueue []SellAction
+	portfolio map[string]int
 }
 
 // Accounts : Maps name -> Account
@@ -38,6 +46,23 @@ func NewAccountStore() *AccountStore {
 	var as AccountStore
 	as.Accounts = make(Accounts)
 	return &as
+}
+
+func (ac Account) addStockToPortfolio(stock string, units int) bool {
+	currentUnits, ok := ac.portfolio[stock]
+	if !ok {
+		currentUnits = 0
+	}
+	ac.portfolio[stock] = currentUnits + units
+}
+
+func (ac Account) removeStockFromPortfolio(stock string, units int) bool {
+	currentUnits, ok := ac.portfolio[stock]
+	if !ok || currentUnits - units < 0{
+		log.Notice("User does not have enough stock to sell")
+		return false
+	}
+	ac.portfolio[stock] = currentUnits - units
 }
 
 // HasAccount : Checks if there's an existing account for the user
