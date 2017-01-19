@@ -10,13 +10,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"Milestone1/currency"
 )
 
 // Quote : Stored response from the quoteserver
 type Quote struct {
 	UserID    string
 	Stock     string
-	Price     float64
+	Price     currency.Currency
 	Timestamp time.Time
 	Cryptokey string
 }
@@ -28,10 +29,6 @@ func (q Quote) IsExpired() bool {
 }
 
 var QuoteCache = make(map[string]map[string]Quote)
-
-// Global to store cached responses.
-// Maps stock name -> Quote
-var cache = make(map[string]Quote)
 
 // GetQuote : Gets the current value of the stock, hitting the local cache if it can.
 func GetQuote(userID, stock string) (Quote, error) {
@@ -114,8 +111,15 @@ func parseQuote(s string) (Quote, error) {
 		return Quote{}, errors.New("Incorrect number of fields returned by quoteserver")
 	}
 
-	// Convert string values from response to proper types
-	price, err := strconv.ParseFloat(parts[0], 64)
+	dollarCentString := strings.Split(parts[0], ".")
+	parsedDollars, err := strconv.ParseInt(dollarCentString[0], 10, 32)
+	parsedCents, err := strconv.ParseInt(dollarCentString[1], 10, 32)
+
+	balance := currency.Currency{
+		Dollars: parsedDollars,
+		Cents: parsedCents,
+	}
+
 	if err != nil {
 		return Quote{}, err
 	}
@@ -127,7 +131,7 @@ func parseQuote(s string) (Quote, error) {
 	}
 
 	quote := Quote{
-		Price:     price,
+		Price:     balance,
 		Stock:     parts[1],
 		UserID:    parts[2],
 		Timestamp: time.Unix(unixTimeInt, 0),

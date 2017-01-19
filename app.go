@@ -10,10 +10,10 @@ import (
 
 	"github.com/op/go-logging"
 
-	"./accounts"
-	"./commands"
-	"./quotecache"
-	"./currency"
+	"Milestone1/accounts"
+	"Milestone1/commands"
+	"Milestone1/quotecache"
+	"Milestone1/currency"
 )
 
 // Globals
@@ -27,7 +27,6 @@ var (
 
 // I suck at namespacing and don't want to type commands.Command over and over
 type command commands.Command
-type Currency currency.Currency
 
 func main() {
 	flag.Parse()
@@ -182,10 +181,10 @@ func executeAdd(cmd command) bool {
 	}
 
 	// Convert to a float
-	amount, err := strconv.ParseFloat(cmd.Args[0], 64)
-	if err != nil {
+	amount, ok := currency.ParseFloatToCurrency(cmd.Args[0])
+	if !ok {
 		// Bail on parse failure
-		log.Error(err.Error())
+		log.Error("Failed to parse currency")
 		return false
 	}
 
@@ -235,11 +234,29 @@ func executeBuy(cmd command) bool {
 	//Gotta check users money and add a reserved portion
 	account := accountStore.GetAccount(cmd.UserID)
 
+	stockSymbol := cmd.Args[0]
+	dollarAmount, ok := currency.ParseFloatToCurrency(cmd.Args[1])
+	//dollarAmount, err := strconv.ParseFloat(cmd.Args[1], 64)
+	if !ok {
+		log.Noticef("Dollar amount %s is invalid", cmd.Args[1])
+		return false
+	}
+	//User wants to buy y worth of x shares.
+	userQuote, err := quotecache.GetQuote(cmd.UserID, stockSymbol)
+
+	if err != nil {
+		log.Noticef("Quote of stock %s for user %s is invalid", stockSymbol, cmd.UserID)
+		return false
+	}
+
+	wholeShares := dollarAmount.GetWholeShares(userQuote.Price)
+
+
 	if account == nil {
 		log.Noticef("User %s does not have an account", account)
 	}
 
-	return account.AddToBuyQueue(cmd.Args[0])
+	return account.AddToBuyQueue(stockSymbol, wholeShares)
 }
 
 func executeSell(cmd command) bool {
@@ -249,6 +266,8 @@ func executeSell(cmd command) bool {
 		log.Noticef("User %s does not have an account", account)
 	}
 
-	return account.AddToSellQueue(cmd.Args[0])
+	units := 0
+
+	return account.AddToSellQueue(cmd.Args[0], units)
 }
 

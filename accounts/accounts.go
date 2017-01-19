@@ -3,22 +3,24 @@ package accounts
 import (
 	"errors"
 	"time"
+	"Milestone1/currency"
 )
-
 
 type BuyAction struct {
 	time	time.Time
 	stock	string
+	units	int
 }
 
 type SellAction struct {
 	time	time.Time
 	stock	string
+	units	int
 }
 
 // Account : State of a particular account
 type Account struct {
-	Balance float64
+	Balance	currency.Currency
 	BuyQueue []BuyAction
 	SellQueue []SellAction
 }
@@ -54,20 +56,22 @@ func (as AccountStore) GetAccount(name string) *Account {
 }
 
 // AddToBuyQueue ; Add a stock S to the buy queue
-func (ac Account) AddToBuyQueue(stock string) bool {
+func (ac Account) AddToBuyQueue(stock string, units int) bool {
 	currentAction := BuyAction{
 		time: time.Now(),
 		stock: stock,
+		units: units,
 	}
 	ac.BuyQueue = append(ac.BuyQueue, currentAction)
 	return true
 }
 
 // AddToSellQueue ; Add a stock S to the buy queue
-func (ac Account) AddToSellQueue(stock string) bool {
+func (ac Account) AddToSellQueue(stock string, units int) bool {
 	currentAction := SellAction{
 		time: time.Now(),
 		stock: stock,
+		units: units,
 	}
 	ac.SellQueue = append(ac.SellQueue, currentAction)
 	return true
@@ -87,13 +91,13 @@ func (as AccountStore) CreateAccount(name string) error {
 }
 
 // AddFunds : Increases the balance of the account
-func (a *Account) AddFunds(amount float64) error {
+func (a *Account) AddFunds(amount currency.Currency) error {
 	// Only allow > $0.00 to be added
-	if amount <= 0 {
+	if amount.Dollars < 0 || amount.Cents < 0 {
 		return errors.New("Can only add > $0.00 to accounts")
 	}
 
-	a.Balance += amount
+	a.Balance.Add(amount)
 
 	return nil
 }
