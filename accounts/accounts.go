@@ -5,8 +5,6 @@ import (
 	"time"
 
 	"github.com/op/go-logging"
-
-	"Milestone1/currency"
 )
 
 var (
@@ -27,7 +25,7 @@ type SellAction struct {
 
 // Account : State of a particular account
 type Account struct {
-	Balance	currency.Currency
+	Balance	int64
 	BuyQueue []BuyAction
 	SellQueue []SellAction
 	portfolio map[string]int
@@ -54,6 +52,7 @@ func (ac Account) addStockToPortfolio(stock string, units int) bool {
 		currentUnits = 0
 	}
 	ac.portfolio[stock] = currentUnits + units
+	return true
 }
 
 func (ac Account) removeStockFromPortfolio(stock string, units int) bool {
@@ -63,6 +62,7 @@ func (ac Account) removeStockFromPortfolio(stock string, units int) bool {
 		return false
 	}
 	ac.portfolio[stock] = currentUnits - units
+	return true
 }
 
 // HasAccount : Checks if there's an existing account for the user
@@ -116,13 +116,13 @@ func (as AccountStore) CreateAccount(name string) error {
 }
 
 // AddFunds : Increases the balance of the account
-func (a *Account) AddFunds(amount currency.Currency) error {
+func (a *Account) AddFunds(amount int64) error {
 	// Only allow > $0.00 to be added
-	if amount.Dollars < 0 || amount.Cents < 0 {
+	if amount < 0 {
 		return errors.New("Can only add > $0.00 to accounts")
 	}
 
-	a.Balance.Add(amount)
+	a.Balance += amount
 
 	return nil
 }

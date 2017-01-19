@@ -180,9 +180,9 @@ func executeAdd(cmd command) bool {
 		return false
 	}
 
-	// Convert to a float
-	amount, ok := currency.ParseFloatToCurrency(cmd.Args[0])
-	if !ok {
+	// Convert to a centInt
+	amount, ok := currency.Parse(cmd.Args[0])
+	if ok != nil {
 		// Bail on parse failure
 		log.Error("Failed to parse currency")
 		return false
