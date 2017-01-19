@@ -17,7 +17,7 @@ import (
 type Quote struct {
 	UserID    string
 	Stock     string
-	Price     currency.Currency
+	Price     int64
 	Timestamp time.Time
 	Cryptokey string
 }
@@ -110,14 +110,7 @@ func parseQuote(s string) (Quote, error) {
 		return Quote{}, errors.New("Incorrect number of fields returned by quoteserver")
 	}
 
-	dollarCentString := strings.Split(parts[0], ".")
-	parsedDollars, err := strconv.ParseInt(dollarCentString[0], 10, 32)
-	parsedCents, err := strconv.ParseInt(dollarCentString[1], 10, 32)
-
-	balance := currency.Currency{
-		Dollars: parsedDollars,
-		Cents: parsedCents,
-	}
+	balance, err := currency.Parse(parts[0])
 
 	if err != nil {
 		return Quote{}, err

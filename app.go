@@ -235,9 +235,9 @@ func executeBuy(cmd command) bool {
 	account := accountStore.GetAccount(cmd.UserID)
 
 	stockSymbol := cmd.Args[0]
-	dollarAmount, ok := currency.ParseFloatToCurrency(cmd.Args[1])
+	dollarAmount, err := currency.Parse(cmd.Args[1])
 	//dollarAmount, err := strconv.ParseFloat(cmd.Args[1], 64)
-	if !ok {
+	if err != nil {
 		log.Noticef("Dollar amount %s is invalid", cmd.Args[1])
 		return false
 	}
@@ -249,7 +249,7 @@ func executeBuy(cmd command) bool {
 		return false
 	}
 
-	wholeShares := dollarAmount.GetWholeShares(userQuote.Price)
+	wholeShares := currency.GetWholeShares(dollarAmount, userQuote.Price)
 
 	if account == nil {
 		log.Noticef("User %s does not have an account", account)

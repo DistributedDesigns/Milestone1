@@ -18,3 +18,7 @@ func Parse(dollarString string) (int64, error) {
 	centValue, err := strconv.ParseInt(centString, 10, 64)
 	return centValue, err
 }
+
+func GetWholeShares(cashOnHand int64, stockPrice int64) int {
+	return int(cashOnHand / stockPrice)
+}
