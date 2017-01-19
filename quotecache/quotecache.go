@@ -23,7 +23,7 @@ type Quote struct {
 
 // IsExpired : True if the quotes timestamp is older than its validity window
 func (q Quote) IsExpired() bool {
-	expiry := q.Timestamp.Add(time.Second * 45)
+	expiry := q.Timestamp.Add(time.Second * 60)
 	return time.Now().After(expiry)
 }
 
@@ -40,14 +40,13 @@ func GetQuote(userID, stock string) (Quote, error) {
 	var userQuote Quote
 	userMap := QuoteCache[stock]
 	userQuote, found := userMap[userID]
-	isFresh := userQuote.Timestamp.Unix() - time.Now().Unix() <= 60
-	if found && isFresh {
+	if found && !userQuote.IsExpired() {
 		//Get it from the cache
 		return userQuote, nil
 	}
 	//Failed to get from cache, go do it outselves.
 
-	if !found || !isFresh {
+	if !found || userQuote.IsExpired() {
 		//get it from the quote server
 		err := updateQuoteCache(userID, stock)
 		if err != nil {
