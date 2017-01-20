@@ -142,10 +142,8 @@ func executeCommand(cmd command) error {
 	switch cmd.Name {
 	case commands.Add:
 		status = executeAdd(cmd)
-		break
 	case commands.Quote:
 		status = executeQuote(cmd)
-		break
 	case commands.Buy:
 		status = executeBuy(cmd)
 	case commands.Sell:
@@ -254,6 +252,11 @@ func executeBuy(cmd command) bool {
 
 	wholeShares, cashRemainder := userQuote.Price.FitsInto(dollarAmount)
 
+	if wholeShares == 0 {
+		log.Notice("Amount specified to buy less than single stock unit")
+		return true
+	}
+
 	dollarAmount.Sub(cashRemainder)
 	account.RemoveFunds(dollarAmount)
 
@@ -283,6 +286,11 @@ func executeSell(cmd command) bool {
 	}
 
 	wholeShares, cashRemainder := userQuote.Price.FitsInto(dollarAmount)
+
+	if wholeShares == 0 {
+		log.Notice("Amount specified to sell less than single stock unit")
+		return true
+	}
 
 	dollarAmount.Add(cashRemainder)
 	account.AddFunds(dollarAmount)
