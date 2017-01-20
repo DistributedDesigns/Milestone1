@@ -23,9 +23,11 @@ type Quote struct {
 
 // IsExpired : True if the quotes timestamp is older than its validity window
 func (q Quote) IsExpired() bool {
-	expiry := q.Timestamp.Add(time.Second * 45)
+	expiry := q.Timestamp.Add(time.Second * 60)
 	return time.Now().After(expiry)
 }
+
+var QuoteCache = make(map[string]map[string]Quote)
 
 // Global to store cached responses.
 // Maps stock name -> Quote
@@ -34,19 +36,26 @@ var cache = make(map[string]Quote)
 // GetQuote : Gets the current value of the stock, hitting the local cache if it can.
 func GetQuote(userID, stock string) (Quote, error) {
 	// check if the value is in cache
-	quote, found := cache[stock]
 
-	if !found || quote.IsExpired() {
+	var userQuote Quote
+	userMap := QuoteCache[stock]
+	userQuote, found := userMap[userID]
+	if found && !userQuote.IsExpired() {
+		//Get it from the cache
+		return userQuote, nil
+	}
+	//Failed to get from cache, go do it outselves.
+
+	if !found || userQuote.IsExpired() {
+		//get it from the quote server
 		err := updateQuoteCache(userID, stock)
 		if err != nil {
 			return Quote{}, err
 		}
 
-		// assign the refreshed value
-		quote = cache[stock]
+		userQuote = QuoteCache[stock][userID]
 	}
-
-	return quote, nil
+	return userQuote, nil
 }
 
 // Refreshes the stock in the global quote cache
@@ -75,7 +84,7 @@ func updateQuoteCache(userID, stock string) error {
 		return err
 	}
 
-	cache[stock] = quote
+	QuoteCache[stock] = map[string]Quote{userID: quote}
 
 	return nil
 }
