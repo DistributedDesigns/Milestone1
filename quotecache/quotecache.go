@@ -10,13 +10,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/distributeddesigns/currency"
 )
 
 // Quote : Stored response from the quoteserver
 type Quote struct {
 	UserID    string
 	Stock     string
-	Price     float64
+	Price     currency.Currency
 	Timestamp time.Time
 	Cryptokey string
 }
@@ -27,18 +29,15 @@ func (q Quote) IsExpired() bool {
 	return time.Now().After(expiry)
 }
 
-var QuoteCache = make(map[string]map[string]Quote)
-
-// Global to store cached responses.
-// Maps stock name -> Quote
-var cache = make(map[string]Quote)
+//quoteCache holds quotes for each user. e.g "AAPL": {"John": John'sQuoteInstance}
+var quoteCache = make(map[string]map[string]Quote)
 
 // GetQuote : Gets the current value of the stock, hitting the local cache if it can.
 func GetQuote(userID, stock string) (Quote, error) {
 	// check if the value is in cache
 
 	var userQuote Quote
-	userMap := QuoteCache[stock]
+	userMap := quoteCache[stock]
 	userQuote, found := userMap[userID]
 	if found && !userQuote.IsExpired() {
 		//Get it from the cache
@@ -46,15 +45,14 @@ func GetQuote(userID, stock string) (Quote, error) {
 	}
 	//Failed to get from cache, go do it outselves.
 
-	if !found || userQuote.IsExpired() {
-		//get it from the quote server
-		err := updateQuoteCache(userID, stock)
-		if err != nil {
-			return Quote{}, err
-		}
-
-		userQuote = QuoteCache[stock][userID]
+	//get it from the quote server
+	err := updateQuoteCache(userID, stock)
+	if err != nil {
+		return Quote{}, err
 	}
+
+	userQuote = quoteCache[stock][userID]
+
 	return userQuote, nil
 }
 
@@ -84,7 +82,7 @@ func updateQuoteCache(userID, stock string) error {
 		return err
 	}
 
-	QuoteCache[stock] = map[string]Quote{userID: quote}
+	quoteCache[stock] = map[string]Quote{userID: quote}
 
 	return nil
 }
@@ -113,8 +111,8 @@ func parseQuote(s string) (Quote, error) {
 		return Quote{}, errors.New("Incorrect number of fields returned by quoteserver")
 	}
 
-	// Convert string values from response to proper types
-	price, err := strconv.ParseFloat(parts[0], 64)
+	balance, err := currency.NewFromString(parts[0])
+
 	if err != nil {
 		return Quote{}, err
 	}
@@ -126,7 +124,7 @@ func parseQuote(s string) (Quote, error) {
 	}
 
 	quote := Quote{
-		Price:     price,
+		Price:     balance,
 		Stock:     parts[1],
 		UserID:    parts[2],
 		Timestamp: time.Unix(unixTimeInt, 0),

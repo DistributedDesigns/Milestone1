@@ -8,11 +8,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/distributeddesigns/currency"
 	"github.com/op/go-logging"
 
-	"./accounts"
-	"./commands"
-	"./quotecache"
+
+	"Milestone1/accounts"
+	"Milestone1/commands"
+	"Milestone1/quotecache"
 )
 
 // Globals
@@ -140,10 +142,12 @@ func executeCommand(cmd command) error {
 	switch cmd.Name {
 	case commands.Add:
 		status = executeAdd(cmd)
-		break
 	case commands.Quote:
 		status = executeQuote(cmd)
-		break
+	case commands.Buy:
+		status = executeBuy(cmd)
+	case commands.Sell:
+		status = executeSell(cmd)
 	default:
 		log.Warningf("Not implemented: %s", cmd.Name)
 		return nil
@@ -175,11 +179,11 @@ func executeAdd(cmd command) bool {
 		return false
 	}
 
-	// Convert to a float
-	amount, err := strconv.ParseFloat(cmd.Args[0], 64)
+	// Convert to a centInt
+	amount, err := currency.NewFromString(cmd.Args[0])
 	if err != nil {
 		// Bail on parse failure
-		log.Error(err.Error())
+		log.Error("Failed to parse currency")
 		return false
 	}
 
@@ -193,13 +197,11 @@ func executeAdd(cmd command) bool {
 	}
 
 	// Add the amount
-	log.Infof("Adding %.2f to %s", amount, cmd.UserID)
-	if err := accountStore.Accounts[cmd.UserID].AddFunds(amount); err != nil {
-		log.Error(err.Error())
-		return false
-	}
+	log.Infof("Adding %s to %s", amount, cmd.UserID)
+	accountStore.Accounts[cmd.UserID].AddFunds(amount)
+
 	balance := accountStore.Accounts[cmd.UserID].Balance
-	log.Infof("New balance for %s is %.2f", cmd.UserID, balance)
+	log.Infof("New balance for %s is %s", cmd.UserID, balance)
 
 	return true
 }
@@ -224,3 +226,80 @@ func executeQuote(cmd command) bool {
 	// send the quote to the user
 	return true
 }
+
+func executeBuy(cmd command) bool {
+	//Gotta check users money and add a reserved portion
+	account := accountStore.GetAccount(cmd.UserID)
+
+	if account == nil {
+		log.Noticef("User %s does not have an account", account)
+		return false;
+	}
+
+	stockSymbol := cmd.Args[0]
+	dollarAmount, err := currency.NewFromString(cmd.Args[1])
+
+	if err != nil {
+		log.Noticef("Dollar amount %s is invalid", cmd.Args[1])
+		return false
+	}
+	//User wants to buy y worth of x shares.
+	userQuote, err := quotecache.GetQuote(cmd.UserID, stockSymbol)
+
+	if err != nil {
+		log.Noticef("Quote of stock %s for user %s is invalid", stockSymbol, cmd.UserID)
+		return false
+	}
+
+	wholeShares, cashRemainder := userQuote.Price.FitsInto(dollarAmount)
+
+	if wholeShares == 0 {
+		log.Notice("Amount specified to buy less than single stock unit")
+		return true
+	} else {
+		log.Notice("User %s set purchase order for %d shares of stock %s", cmd.UserID, wholeShares, stockSymbol)
+	}
+
+	dollarAmount.Sub(cashRemainder)
+	account.RemoveFunds(dollarAmount)
+
+	return account.AddToBuyQueue(stockSymbol, wholeShares, userQuote.Price)
+}
+
+func executeSell(cmd command) bool {
+	account := accountStore.GetAccount(cmd.UserID)
+
+	if account == nil {
+		log.Noticef("User %s does not have an account", account)
+		return false;
+	}
+
+	stockSymbol := cmd.Args[0]
+	dollarAmount, err := currency.NewFromString(cmd.Args[1])
+
+	if err != nil {
+		log.Noticef("Dollar amount %s is invalid", cmd.Args[1])
+		return false
+	}
+
+	userQuote, err := quotecache.GetQuote(cmd.UserID, stockSymbol)
+
+	if err != nil {
+		log.Noticef("Quote of stock %s for user %s is invalid", stockSymbol, cmd.UserID)
+		return false
+	}
+
+	wholeShares, _ := userQuote.Price.FitsInto(dollarAmount)
+
+	if wholeShares == 0 {
+		log.Notice("Amount specified to sell less than single stock unit")
+		return true
+	}
+
+	log.Notice("User %s set sale order for %d shares of stock %s at %s", cmd.UserID, wholeShares, stockSymbol, userQuote.Price)
+
+	// Do not add the money back to the account until the sale is committed
+
+	return account.AddToSellQueue(stockSymbol, wholeShares, userQuote.Price)
+}
+
