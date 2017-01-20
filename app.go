@@ -287,11 +287,5 @@ func executeSell(cmd command) bool {
 	account.AddFunds(userQuote.Price * int64(wholeShares))
 
 	return account.AddToSellQueue(stockSymbol, wholeShares)
-
-
-
-	units := 0
-
-	return account.AddToSellQueue(stockSymbol, units)
 }
 
