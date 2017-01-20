@@ -294,9 +294,9 @@ func executeSell(cmd command) bool {
 	if wholeShares == 0 {
 		log.Notice("Amount specified to sell less than single stock unit")
 		return true
-	} else {
-		log.Notice("User %s set sale order for %d shares of stock %s", cmd.UserID, wholeShares, stockSymbol)
 	}
+
+	log.Notice("User %s set sale order for %d shares of stock %s at %s", cmd.UserID, wholeShares, stockSymbol, userQuote.Price)
 
 	// Do not add the money back to the account until the sale is committed
 
