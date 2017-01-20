@@ -256,6 +256,8 @@ func executeBuy(cmd command) bool {
 	if wholeShares == 0 {
 		log.Notice("Amount specified to buy less than single stock unit")
 		return true
+	} else {
+		log.Notice("User %s set purchase order for %d shares of stock %s", cmd.UserID, wholeShares, stockSymbol)
 	}
 
 	dollarAmount.Sub(cashRemainder)
@@ -292,6 +294,8 @@ func executeSell(cmd command) bool {
 	if wholeShares == 0 {
 		log.Notice("Amount specified to sell less than single stock unit")
 		return true
+	} else {
+		log.Notice("User %s set sale order for %d shares of stock %s", cmd.UserID, wholeShares, stockSymbol)
 	}
 
 	_ = cashRemainder //squash unused variable warning using blank identifier

@@ -52,7 +52,7 @@ func GetQuote(userID, stock string) (Quote, error) {
 	}
 
 	userQuote = quoteCache[stock][userID]
-	
+
 	return userQuote, nil
 }
 

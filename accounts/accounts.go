@@ -13,14 +13,7 @@ var (
 	log = logging.MustGetLogger("audit")
 )
 
-type BuyAction struct {
-	time	time.Time
-	stock	string
-	units	uint
-	unitPrice currency.Currency
-}
-
-type SellAction struct {
+type Action struct {
 	time	time.Time
 	stock	string
 	units	uint
@@ -30,8 +23,7 @@ type SellAction struct {
 // Account : State of a particular account
 type Account struct {
 	Balance	currency.Currency
-	BuyQueue []BuyAction
-	SellQueue []SellAction
+	BuyQueue, SellQueue []Action
 	portfolio map[string]int
 }
 
@@ -91,7 +83,7 @@ func (as AccountStore) GetAccount(name string) *Account {
 
 // AddToBuyQueue ; Add a stock S to the buy queue
 func (ac Account) AddToBuyQueue(stock string, units uint, unitPrice currency.Currency) bool {
-	currentAction := BuyAction{
+	currentAction := Action{
 		time: time.Now(),
 		stock: stock,
 		units: units,
@@ -103,7 +95,7 @@ func (ac Account) AddToBuyQueue(stock string, units uint, unitPrice currency.Cur
 
 // AddToSellQueue ; Add a stock S to the buy queue
 func (ac Account) AddToSellQueue(stock string, units uint, unitPrice currency.Currency) bool {
-	currentAction := SellAction{
+	currentAction := Action{
 		time: time.Now(),
 		stock: stock,
 		units: units,
