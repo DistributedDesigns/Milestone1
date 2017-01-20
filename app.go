@@ -234,6 +234,10 @@ func executeBuy(cmd command) bool {
 	//Gotta check users money and add a reserved portion
 	account := accountStore.GetAccount(cmd.UserID)
 
+	if account == nil {
+		log.Noticef("User %s does not have an account", account)
+	}
+
 	stockSymbol := cmd.Args[0]
 	dollarAmount, err := currency.Parse(cmd.Args[1])
 	//dollarAmount, err := strconv.ParseFloat(cmd.Args[1], 64)
@@ -252,9 +256,6 @@ func executeBuy(cmd command) bool {
 	wholeShares := currency.GetWholeShares(dollarAmount, userQuote.Price)
 
 	account.RemoveFunds(userQuote.Price * int64(wholeShares))
-	if account == nil {
-		log.Noticef("User %s does not have an account", account)
-	}
 
 	return account.AddToBuyQueue(stockSymbol, wholeShares)
 }
@@ -266,8 +267,31 @@ func executeSell(cmd command) bool {
 		log.Noticef("User %s does not have an account", account)
 	}
 
+	stockSymbol := cmd.Args[0]
+	dollarAmount, err := currency.Parse(cmd.Args[1])
+
+	if err != nil {
+		log.Noticef("Dollar amount %s is invalid", cmd.Args[1])
+		return false
+	}
+
+	userQuote, err := quotecache.GetQuote(cmd.UserID, stockSymbol)
+
+	if err != nil {
+		log.Noticef("Quote of stock %s for user %s is invalid", stockSymbol, cmd.UserID)
+		return false
+	}
+
+	wholeShares := currency.GetWholeShares(dollarAmount, userQuote.Price)
+
+	account.AddFunds(userQuote.Price * int64(wholeShares))
+
+	return account.AddToSellQueue(stockSymbol, wholeShares)
+
+
+
 	units := 0
 
-	return account.AddToSellQueue(cmd.Args[0], units)
+	return account.AddToSellQueue(stockSymbol, units)
 }
 

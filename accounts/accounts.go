@@ -65,6 +65,11 @@ func (ac Account) removeStockFromPortfolio(stock string, units int) bool {
 	return true
 }
 
+func (ac Account) getPortfolioStockUnits(stock string) int {
+	return ac.portfolio[stock]
+
+}
+
 // HasAccount : Checks if there's an existing account for the user
 func (as AccountStore) HasAccount(name string) bool {
 	_, ok := as.Accounts[name]
