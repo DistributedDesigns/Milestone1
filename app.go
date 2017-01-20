@@ -183,7 +183,7 @@ func executeAdd(cmd command) bool {
 	amount, err := currency.NewFromString(cmd.Args[0])
 	if err != nil {
 		// Bail on parse failure
-		log.Error("Failed to parse currencyOld")
+		log.Error("Failed to parse currency")
 		return false
 	}
 
@@ -197,11 +197,11 @@ func executeAdd(cmd command) bool {
 	}
 
 	// Add the amount
-	log.Infof("Adding %.2f to %s", amount, cmd.UserID)
+	log.Infof("Adding %s to %s", amount, cmd.UserID)
 	accountStore.Accounts[cmd.UserID].AddFunds(amount)
 
 	balance := accountStore.Accounts[cmd.UserID].Balance
-	log.Infof("New balance for %s is %.2f", cmd.UserID, balance)
+	log.Infof("New balance for %s is %s", cmd.UserID, balance)
 
 	return true
 }
@@ -233,11 +233,12 @@ func executeBuy(cmd command) bool {
 
 	if account == nil {
 		log.Noticef("User %s does not have an account", account)
+		return false;
 	}
 
 	stockSymbol := cmd.Args[0]
 	dollarAmount, err := currency.NewFromString(cmd.Args[1])
-	//dollarAmount, err := strconv.ParseFloat(cmd.Args[1], 64)
+
 	if err != nil {
 		log.Noticef("Dollar amount %s is invalid", cmd.Args[1])
 		return false
@@ -260,7 +261,7 @@ func executeBuy(cmd command) bool {
 	dollarAmount.Sub(cashRemainder)
 	account.RemoveFunds(dollarAmount)
 
-	return account.AddToBuyQueue(stockSymbol, wholeShares)
+	return account.AddToBuyQueue(stockSymbol, wholeShares, userQuote.Price)
 }
 
 func executeSell(cmd command) bool {
@@ -268,6 +269,7 @@ func executeSell(cmd command) bool {
 
 	if account == nil {
 		log.Noticef("User %s does not have an account", account)
+		return false;
 	}
 
 	stockSymbol := cmd.Args[0]
@@ -292,9 +294,10 @@ func executeSell(cmd command) bool {
 		return true
 	}
 
-	dollarAmount.Add(cashRemainder)
-	account.AddFunds(dollarAmount)
+	_ = cashRemainder //squash unused variable warning using blank identifier
 
-	return account.AddToSellQueue(stockSymbol, wholeShares)
+	// Do not add the money back to the account until the sale is committed
+
+	return account.AddToSellQueue(stockSymbol, wholeShares, userQuote.Price)
 }
 

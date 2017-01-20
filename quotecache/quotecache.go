@@ -29,14 +29,15 @@ func (q Quote) IsExpired() bool {
 	return time.Now().After(expiry)
 }
 
-var QuoteCache = make(map[string]map[string]Quote)
+//quoteCache holds quotes for each user. e.g "AAPL": {"John": John'sQuoteInstance}
+var quoteCache = make(map[string]map[string]Quote)
 
 // GetQuote : Gets the current value of the stock, hitting the local cache if it can.
 func GetQuote(userID, stock string) (Quote, error) {
 	// check if the value is in cache
 
 	var userQuote Quote
-	userMap := QuoteCache[stock]
+	userMap := quoteCache[stock]
 	userQuote, found := userMap[userID]
 	if found && !userQuote.IsExpired() {
 		//Get it from the cache
@@ -44,15 +45,14 @@ func GetQuote(userID, stock string) (Quote, error) {
 	}
 	//Failed to get from cache, go do it outselves.
 
-	if !found || userQuote.IsExpired() {
-		//get it from the quote server
-		err := updateQuoteCache(userID, stock)
-		if err != nil {
-			return Quote{}, err
-		}
-
-		userQuote = QuoteCache[stock][userID]
+	//get it from the quote server
+	err := updateQuoteCache(userID, stock)
+	if err != nil {
+		return Quote{}, err
 	}
+
+	userQuote = quoteCache[stock][userID]
+	
 	return userQuote, nil
 }
 
@@ -82,7 +82,7 @@ func updateQuoteCache(userID, stock string) error {
 		return err
 	}
 
-	QuoteCache[stock] = map[string]Quote{userID: quote}
+	quoteCache[stock] = map[string]Quote{userID: quote}
 
 	return nil
 }

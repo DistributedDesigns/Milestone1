@@ -17,12 +17,14 @@ type BuyAction struct {
 	time	time.Time
 	stock	string
 	units	uint
+	unitPrice currency.Currency
 }
 
 type SellAction struct {
 	time	time.Time
 	stock	string
 	units	uint
+	unitPrice currency.Currency
 }
 
 // Account : State of a particular account
@@ -88,22 +90,24 @@ func (as AccountStore) GetAccount(name string) *Account {
 }
 
 // AddToBuyQueue ; Add a stock S to the buy queue
-func (ac Account) AddToBuyQueue(stock string, units uint) bool {
+func (ac Account) AddToBuyQueue(stock string, units uint, unitPrice currency.Currency) bool {
 	currentAction := BuyAction{
 		time: time.Now(),
 		stock: stock,
 		units: units,
+		unitPrice: unitPrice,
 	}
 	ac.BuyQueue = append(ac.BuyQueue, currentAction)
 	return true
 }
 
 // AddToSellQueue ; Add a stock S to the buy queue
-func (ac Account) AddToSellQueue(stock string, units uint) bool {
+func (ac Account) AddToSellQueue(stock string, units uint, unitPrice currency.Currency) bool {
 	currentAction := SellAction{
 		time: time.Now(),
 		stock: stock,
 		units: units,
+		unitPrice: unitPrice,
 	}
 	ac.SellQueue = append(ac.SellQueue, currentAction)
 	return true
