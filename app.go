@@ -289,7 +289,7 @@ func executeSell(cmd command) bool {
 		return false
 	}
 
-	wholeShares, cashRemainder := userQuote.Price.FitsInto(dollarAmount)
+	wholeShares, _ := userQuote.Price.FitsInto(dollarAmount)
 
 	if wholeShares == 0 {
 		log.Notice("Amount specified to sell less than single stock unit")
@@ -297,8 +297,6 @@ func executeSell(cmd command) bool {
 	} else {
 		log.Notice("User %s set sale order for %d shares of stock %s", cmd.UserID, wholeShares, stockSymbol)
 	}
-
-	_ = cashRemainder //squash unused variable warning using blank identifier
 
 	// Do not add the money back to the account until the sale is committed
 
