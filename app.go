@@ -8,12 +8,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/distributeddesigns/currency"
 	"github.com/op/go-logging"
+
 
 	"Milestone1/accounts"
 	"Milestone1/commands"
 	"Milestone1/quotecache"
-	"Milestone1/currency"
 )
 
 // Globals
@@ -181,10 +182,10 @@ func executeAdd(cmd command) bool {
 	}
 
 	// Convert to a centInt
-	amount, ok := currency.Parse(cmd.Args[0])
+	amount, ok := currency.NewFromString(cmd.Args[0])
 	if ok != nil {
 		// Bail on parse failure
-		log.Error("Failed to parse currency")
+		log.Error("Failed to parse currencyOld")
 		return false
 	}
 
@@ -199,10 +200,8 @@ func executeAdd(cmd command) bool {
 
 	// Add the amount
 	log.Infof("Adding %.2f to %s", amount, cmd.UserID)
-	if err := accountStore.Accounts[cmd.UserID].AddFunds(amount); err != nil {
-		log.Error(err.Error())
-		return false
-	}
+	accountStore.Accounts[cmd.UserID].AddFunds(amount)
+
 	balance := accountStore.Accounts[cmd.UserID].Balance
 	log.Infof("New balance for %s is %.2f", cmd.UserID, balance)
 
@@ -239,7 +238,7 @@ func executeBuy(cmd command) bool {
 	}
 
 	stockSymbol := cmd.Args[0]
-	dollarAmount, err := currency.Parse(cmd.Args[1])
+	dollarAmount, err := currency.NewFromString(cmd.Args[1])
 	//dollarAmount, err := strconv.ParseFloat(cmd.Args[1], 64)
 	if err != nil {
 		log.Noticef("Dollar amount %s is invalid", cmd.Args[1])
@@ -253,9 +252,10 @@ func executeBuy(cmd command) bool {
 		return false
 	}
 
-	wholeShares := currency.GetWholeShares(dollarAmount, userQuote.Price)
+	wholeShares, cashRemainder := userQuote.Price.FitsInto(dollarAmount)
 
-	account.RemoveFunds(userQuote.Price * int64(wholeShares))
+	dollarAmount.Sub(cashRemainder)
+	account.RemoveFunds(dollarAmount)
 
 	return account.AddToBuyQueue(stockSymbol, wholeShares)
 }
@@ -268,7 +268,7 @@ func executeSell(cmd command) bool {
 	}
 
 	stockSymbol := cmd.Args[0]
-	dollarAmount, err := currency.Parse(cmd.Args[1])
+	dollarAmount, err := currency.NewFromString(cmd.Args[1])
 
 	if err != nil {
 		log.Noticef("Dollar amount %s is invalid", cmd.Args[1])
@@ -282,9 +282,10 @@ func executeSell(cmd command) bool {
 		return false
 	}
 
-	wholeShares := currency.GetWholeShares(dollarAmount, userQuote.Price)
+	wholeShares, cashRemainder := userQuote.Price.FitsInto(dollarAmount)
 
-	account.AddFunds(userQuote.Price * int64(wholeShares))
+	dollarAmount.Add(cashRemainder)
+	account.AddFunds(dollarAmount)
 
 	return account.AddToSellQueue(stockSymbol, wholeShares)
 }

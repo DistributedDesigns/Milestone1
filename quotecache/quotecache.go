@@ -10,14 +10,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"Milestone1/currency"
+
+	"github.com/distributeddesigns/currency"
 )
 
 // Quote : Stored response from the quoteserver
 type Quote struct {
 	UserID    string
 	Stock     string
-	Price     int64
+	Price     currency.Currency
 	Timestamp time.Time
 	Cryptokey string
 }
@@ -110,7 +111,7 @@ func parseQuote(s string) (Quote, error) {
 		return Quote{}, errors.New("Incorrect number of fields returned by quoteserver")
 	}
 
-	balance, err := currency.Parse(parts[0])
+	balance, err := currency.NewFromString(parts[0])
 
 	if err != nil {
 		return Quote{}, err

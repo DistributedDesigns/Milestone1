@@ -4,7 +4,9 @@ import (
 	"errors"
 	"time"
 
+	"github.com/distributeddesigns/currency"
 	"github.com/op/go-logging"
+
 )
 
 var (
@@ -14,18 +16,18 @@ var (
 type BuyAction struct {
 	time	time.Time
 	stock	string
-	units	int
+	units	uint
 }
 
 type SellAction struct {
 	time	time.Time
 	stock	string
-	units	int
+	units	uint
 }
 
 // Account : State of a particular account
 type Account struct {
-	Balance	int64
+	Balance	currency.Currency
 	BuyQueue []BuyAction
 	SellQueue []SellAction
 	portfolio map[string]int
@@ -86,7 +88,7 @@ func (as AccountStore) GetAccount(name string) *Account {
 }
 
 // AddToBuyQueue ; Add a stock S to the buy queue
-func (ac Account) AddToBuyQueue(stock string, units int) bool {
+func (ac Account) AddToBuyQueue(stock string, units uint) bool {
 	currentAction := BuyAction{
 		time: time.Now(),
 		stock: stock,
@@ -97,7 +99,7 @@ func (ac Account) AddToBuyQueue(stock string, units int) bool {
 }
 
 // AddToSellQueue ; Add a stock S to the buy queue
-func (ac Account) AddToSellQueue(stock string, units int) bool {
+func (ac Account) AddToSellQueue(stock string, units uint) bool {
 	currentAction := SellAction{
 		time: time.Now(),
 		stock: stock,
@@ -121,23 +123,15 @@ func (as AccountStore) CreateAccount(name string) error {
 }
 
 // AddFunds : Increases the balance of the account
-func (a *Account) AddFunds(amount int64) error {
+func (a *Account) AddFunds(amount currency.Currency) {
 	// Only allow > $0.00 to be added
-	if amount < 0 {
-		return errors.New("Can only add > $0.00 to accounts")
-	}
-
-	a.Balance += amount
-
-	return nil
+	a.Balance.Add(amount)
 }
 
-func (a *Account) RemoveFunds(amount int64) error {
-	if a.Balance - amount < 0 {
+func (a *Account) RemoveFunds(amount currency.Currency) error {
+	err := a.Balance.Sub(amount)
+	if err != nil {
 		return errors.New("Insufficient Funds")
 	}
-
-	a.Balance -= amount
-
 	return nil
 }
