@@ -180,8 +180,8 @@ func executeAdd(cmd command) bool {
 	}
 
 	// Convert to a centInt
-	amount, ok := currency.NewFromString(cmd.Args[0])
-	if ok != nil {
+	amount, err := currency.NewFromString(cmd.Args[0])
+	if err != nil {
 		// Bail on parse failure
 		log.Error("Failed to parse currencyOld")
 		return false
