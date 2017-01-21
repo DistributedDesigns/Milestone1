@@ -151,6 +151,8 @@ func executeCommand(cmd command) error {
 		status = executeCancelBuy(cmd)
 	case commands.Sell:
 		status = executeSell(cmd)
+	case commands.CancelSell:
+		status = executeCancelSell(cmd)
 	default:
 		log.Warningf("Not implemented: %s", cmd.Name)
 		return nil
@@ -261,8 +263,9 @@ func executeBuy(cmd command) bool {
 		return true
 	}
 
-	log.Notice("User %s set purchase order for %d shares of stock %s", cmd.UserID, wholeShares, stockSymbol)
+	log.Infof("User %s set purchase order for %d shares of stock %s", cmd.UserID, wholeShares, stockSymbol)
 
+	// Remove the funds from user now to prevent double spending
 	dollarAmount.Sub(cashRemainder)
 	account.RemoveFunds(dollarAmount)
 
@@ -279,23 +282,23 @@ func executeCommitBuy(cmd command) bool {
 
 	// CommitBuy has no additional args to parse! Everything is in cmd.
 
-	// Get the most recent Buy from the user
-	latestBuy, found := account.PopLatestBuy()
+	// Get the most recent Buy from the user and shrink the buy queue
+	newestBuy, found := account.BuyQueue.PopNewest()
 
 	// If there's no Buy or it's expired, don't change the user account
 	// and log the command failure.
-	if !found || latestBuy.IsExpired() {
+	if !found || newestBuy.IsExpired() {
 		log.Infof("No active buys to commit for %s", cmd.UserID)
 		return false
 	}
 
 	// If there is an active Buy give the user the stock quantity.
-	log.Infof("Committing buy for user %s for %d unit of %s", cmd.UserID, latestBuy.Units, latestBuy.Stock)
-	log.Debugf("Before, user has %d of %s", account.GetPortfolioStockUnits(latestBuy.Stock), latestBuy.Stock)
+	log.Infof("Committing buy for user %s for %d unit of %s", cmd.UserID, newestBuy.Units, newestBuy.Stock)
+	log.Debugf("Before, user has %d of %s", account.GetPortfolioStockUnits(newestBuy.Stock), newestBuy.Stock)
 
-	account.AddStockToPortfolio(latestBuy.Stock, latestBuy.Units)
+	account.AddStockToPortfolio(newestBuy.Stock, newestBuy.Units)
 
-	log.Debugf("After, user has %d of %s", account.GetPortfolioStockUnits(latestBuy.Stock), latestBuy.Stock)
+	log.Debugf("After, user has %d of %s", account.GetPortfolioStockUnits(newestBuy.Stock), newestBuy.Stock)
 
 	return true
 }
@@ -311,7 +314,7 @@ func executeCancelBuy(cmd command) bool {
 	// CommitBuy has no additional args to parse! Everything is in cmd.
 
 	// Pop the latest Buy to get it out of the queue
-	latestBuy, found := account.PopLatestBuy()
+	newestBuy, found := account.BuyQueue.PopNewest()
 	if !found {
 		log.Infof("No active buys to cancel for %s", cmd.UserID)
 		return false
@@ -319,10 +322,10 @@ func executeCancelBuy(cmd command) bool {
 
 	// Return the reserve amount to the user's balance
 	var reserve currency.Currency
-	reserve.Add(latestBuy.UnitPrice)
-	reserve.Mul(float64(latestBuy.Units))
+	reserve.Add(newestBuy.UnitPrice)
+	reserve.Mul(float64(newestBuy.Units))
 
-	log.Infof("Cancel buy for %s. Adding back %s", latestBuy.Stock, reserve)
+	log.Infof("Cancel buy for %s. Adding back %s", newestBuy.Stock, reserve)
 	log.Debugf("Before, user balance %s", account.Balance)
 
 	account.AddFunds(reserve)
@@ -362,9 +365,17 @@ func executeSell(cmd command) bool {
 		return true
 	}
 
-	log.Notice("User %s set sale order for %d shares of stock %s at %s", cmd.UserID, wholeShares, stockSymbol, userQuote.Price)
+	log.Infof("User %s set sale order for %d shares of stock %s at %s", cmd.UserID, wholeShares, stockSymbol, userQuote.Price)
 
-	// Do not add the money back to the account until the sale is committed
+	// Remove stock now to prevent double selling
+	if stockWasRemoved := account.RemoveStockFromPortfolio(stockSymbol, wholeShares); !stockWasRemoved {
+		return false
+	}
 
+	// Make the new sell order and report success
 	return account.AddToSellQueue(stockSymbol, wholeShares, userQuote.Price)
+}
+
+func executeCancelSell(cmd command) bool {
+	return true
 }
