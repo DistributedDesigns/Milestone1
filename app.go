@@ -151,6 +151,8 @@ func executeCommand(cmd command) error {
 		status = executeCancelBuy(cmd)
 	case commands.Sell:
 		status = executeSell(cmd)
+	case commands.CommitSell:
+		status = executeCommitSell(cmd)
 	case commands.CancelSell:
 		status = executeCancelSell(cmd)
 	default:
@@ -376,6 +378,63 @@ func executeSell(cmd command) bool {
 	return account.AddToSellQueue(stockSymbol, wholeShares, userQuote.Price)
 }
 
+func executeCommitSell(cmd command) bool {
+	account := accountStore.GetAccount(cmd.UserID)
+
+	if account == nil {
+		log.Infof("User %s does not have an account", cmd.UserID)
+		return false
+	}
+
+	// CommitSell has no additional args to parse! Everything is in cmd.
+
+	// Pop the latest Sell to get it out of the queue
+	newestSell, found := account.SellQueue.PopNewest()
+	if !found {
+		log.Infof("No active sells to cancel for %s", cmd.UserID)
+		return false
+	}
+
+	// Add the profit of the sale to the user's account
+	var profit currency.Currency
+	profit.Add(newestSell.UnitPrice)
+	profit.Mul(float64(newestSell.Units))
+
+	log.Infof("Commit sell for %s of %d units of %s at %s. Adding %s",
+		cmd.UserID, newestSell.Units, newestSell.Stock, newestSell.UnitPrice, profit,
+	)
+	log.Debugf("Before, user balance %s", account.Balance)
+
+	account.AddFunds(profit)
+
+	log.Debugf("After, user balance %s", account.Balance)
+
+	return true
+}
+
 func executeCancelSell(cmd command) bool {
+	account := accountStore.GetAccount(cmd.UserID)
+
+	if account == nil {
+		log.Infof("User %s does not have an account", cmd.UserID)
+		return false
+	}
+
+	// CancelSell has no additional args to parse! Everything is in cmd.
+
+	newestSell, found := account.SellQueue.PopNewest()
+	if !found {
+		log.Infof("No active sells to cancel for %s", cmd.UserID)
+		return false
+	}
+
+	// Add the stock back to the user's portfolio
+	log.Infof("Cancel sell for %s. Adding back %d units", newestSell.Stock, newestSell.Units)
+	log.Debugf("Before, user portfolio: %d x %s", account.Portfolio[newestSell.Stock], newestSell.Stock)
+
+	account.AddStockToPortfolio(newestSell.Stock, newestSell.Units)
+
+	log.Debugf("After, user portfolio: %d x %s", account.Portfolio[newestSell.Stock], newestSell.Stock)
+
 	return true
 }
