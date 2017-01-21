@@ -145,6 +145,8 @@ func executeCommand(cmd command) error {
 		status = executeQuote(cmd)
 	case commands.Buy:
 		status = executeBuy(cmd)
+	case commands.CommitBuy:
+		status = executeCommitBuy(cmd)
 	case commands.Sell:
 		status = executeSell(cmd)
 	default:
@@ -263,6 +265,37 @@ func executeBuy(cmd command) bool {
 	account.RemoveFunds(dollarAmount)
 
 	return account.AddToBuyQueue(stockSymbol, wholeShares, userQuote.Price)
+}
+
+func executeCommitBuy(cmd command) bool {
+	account := accountStore.GetAccount(cmd.UserID)
+
+	if account == nil {
+		log.Infof("User %s does not have an account", cmd.UserID)
+		return false
+	}
+
+	// CommitBuy has no additional args to parse! Everything is in cmd.
+
+	// Get the most recent Buy from the user
+	latestBuy, found := account.PopLatestBuy()
+
+	// If there's no Buy or it's expired, don't change the user account
+	// and log the command failure.
+	if !found || latestBuy.IsExpired() {
+		log.Infof("No active buys for %s", cmd.UserID)
+		return false
+	}
+
+	// If there is an active Buy give the user the stock quantity.
+	log.Infof("Committing buy for user %s for %d unit of %s", cmd.UserID, latestBuy.Units, latestBuy.Stock)
+	log.Debugf("Before, user has %d of %s", account.GetPortfolioStockUnits(latestBuy.Stock), latestBuy.Stock)
+
+	account.AddStockToPortfolio(latestBuy.Stock, latestBuy.Units)
+
+	log.Debugf("After, user has %d of %s", account.GetPortfolioStockUnits(latestBuy.Stock), latestBuy.Stock)
+
+	return true
 }
 
 func executeSell(cmd command) bool {
