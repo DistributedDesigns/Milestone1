@@ -6,25 +6,25 @@ import (
 
 	"github.com/distributeddesigns/currency"
 	"github.com/op/go-logging"
-
 )
 
 var (
 	log = logging.MustGetLogger("audit")
 )
 
+// Action : A Buy or Sell request that can expire
 type Action struct {
-	time	time.Time
-	stock	string
-	units	uint
+	time      time.Time
+	stock     string
+	units     uint
 	unitPrice currency.Currency
 }
 
 // Account : State of a particular account
 type Account struct {
-	Balance	currency.Currency
+	Balance             currency.Currency
 	BuyQueue, SellQueue []Action
-	portfolio map[string]int
+	Portfolio           map[string]int
 }
 
 // Accounts : Maps name -> Account
@@ -32,7 +32,7 @@ type Accounts map[string]*Account
 
 // AccountStore : A collection of accouunts
 type AccountStore struct {
-	Accounts Accounts
+	Accounts map[string]*Account
 }
 
 // NewAccountStore : A constructor that returns an initialized AccountStore
@@ -43,26 +43,26 @@ func NewAccountStore() *AccountStore {
 }
 
 func (ac Account) addStockToPortfolio(stock string, units int) bool {
-	currentUnits, ok := ac.portfolio[stock]
+	currentUnits, ok := ac.Portfolio[stock]
 	if !ok {
 		currentUnits = 0
 	}
-	ac.portfolio[stock] = currentUnits + units
+	ac.Portfolio[stock] = currentUnits + units
 	return true
 }
 
 func (ac Account) removeStockFromPortfolio(stock string, units int) bool {
-	currentUnits, ok := ac.portfolio[stock]
-	if !ok || currentUnits - units < 0{
+	currentUnits, ok := ac.Portfolio[stock]
+	if !ok || currentUnits-units < 0 {
 		log.Notice("User does not have enough stock to sell")
 		return false
 	}
-	ac.portfolio[stock] = currentUnits - units
+	ac.Portfolio[stock] = currentUnits - units
 	return true
 }
 
 func (ac Account) getPortfolioStockUnits(stock string) int {
-	return ac.portfolio[stock]
+	return ac.Portfolio[stock]
 
 }
 
@@ -76,7 +76,7 @@ func (as AccountStore) HasAccount(name string) bool {
 func (as AccountStore) GetAccount(name string) *Account {
 	account, ok := as.Accounts[name]
 	if !ok {
-		return nil;
+		return nil
 	}
 	return account
 }
@@ -84,9 +84,9 @@ func (as AccountStore) GetAccount(name string) *Account {
 // AddToBuyQueue ; Add a stock S to the buy queue
 func (ac Account) AddToBuyQueue(stock string, units uint, unitPrice currency.Currency) bool {
 	currentAction := Action{
-		time: time.Now(),
-		stock: stock,
-		units: units,
+		time:      time.Now(),
+		stock:     stock,
+		units:     units,
 		unitPrice: unitPrice,
 	}
 	ac.BuyQueue = append(ac.BuyQueue, currentAction)
@@ -96,9 +96,9 @@ func (ac Account) AddToBuyQueue(stock string, units uint, unitPrice currency.Cur
 // AddToSellQueue ; Add a stock S to the buy queue
 func (ac Account) AddToSellQueue(stock string, units uint, unitPrice currency.Currency) bool {
 	currentAction := Action{
-		time: time.Now(),
-		stock: stock,
-		units: units,
+		time:      time.Now(),
+		stock:     stock,
+		units:     units,
 		unitPrice: unitPrice,
 	}
 	ac.SellQueue = append(ac.SellQueue, currentAction)
@@ -119,13 +119,14 @@ func (as AccountStore) CreateAccount(name string) error {
 }
 
 // AddFunds : Increases the balance of the account
-func (a *Account) AddFunds(amount currency.Currency) {
+func (ac *Account) AddFunds(amount currency.Currency) {
 	// Only allow > $0.00 to be added
-	a.Balance.Add(amount)
+	ac.Balance.Add(amount)
 }
 
-func (a *Account) RemoveFunds(amount currency.Currency) error {
-	err := a.Balance.Sub(amount)
+// RemoveFunds : Decrease balance of the account
+func (ac *Account) RemoveFunds(amount currency.Currency) error {
+	err := ac.Balance.Sub(amount)
 	if err != nil {
 		return errors.New("Insufficient Funds")
 	}

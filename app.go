@@ -11,7 +11,6 @@ import (
 	"github.com/distributeddesigns/currency"
 	"github.com/op/go-logging"
 
-
 	"github.com/distributeddesigns/milestone1/accounts"
 	"github.com/distributeddesigns/milestone1/commands"
 	"github.com/distributeddesigns/milestone1/quotecache"
@@ -233,7 +232,7 @@ func executeBuy(cmd command) bool {
 
 	if account == nil {
 		log.Noticef("User %s does not have an account", account)
-		return false;
+		return false
 	}
 
 	stockSymbol := cmd.Args[0]
@@ -256,9 +255,9 @@ func executeBuy(cmd command) bool {
 	if wholeShares == 0 {
 		log.Notice("Amount specified to buy less than single stock unit")
 		return true
-	} else {
-		log.Notice("User %s set purchase order for %d shares of stock %s", cmd.UserID, wholeShares, stockSymbol)
 	}
+
+	log.Notice("User %s set purchase order for %d shares of stock %s", cmd.UserID, wholeShares, stockSymbol)
 
 	dollarAmount.Sub(cashRemainder)
 	account.RemoveFunds(dollarAmount)
@@ -271,7 +270,7 @@ func executeSell(cmd command) bool {
 
 	if account == nil {
 		log.Noticef("User %s does not have an account", account)
-		return false;
+		return false
 	}
 
 	stockSymbol := cmd.Args[0]
@@ -302,4 +301,3 @@ func executeSell(cmd command) bool {
 
 	return account.AddToSellQueue(stockSymbol, wholeShares, userQuote.Price)
 }
-
