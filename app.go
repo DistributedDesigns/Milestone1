@@ -147,6 +147,8 @@ func executeCommand(cmd command) error {
 		status = executeBuy(cmd)
 	case commands.CommitBuy:
 		status = executeCommitBuy(cmd)
+	case commands.CancelBuy:
+		status = executeCancelBuy(cmd)
 	case commands.Sell:
 		status = executeSell(cmd)
 	default:
@@ -283,7 +285,7 @@ func executeCommitBuy(cmd command) bool {
 	// If there's no Buy or it's expired, don't change the user account
 	// and log the command failure.
 	if !found || latestBuy.IsExpired() {
-		log.Infof("No active buys for %s", cmd.UserID)
+		log.Infof("No active buys to commit for %s", cmd.UserID)
 		return false
 	}
 
@@ -294,6 +296,38 @@ func executeCommitBuy(cmd command) bool {
 	account.AddStockToPortfolio(latestBuy.Stock, latestBuy.Units)
 
 	log.Debugf("After, user has %d of %s", account.GetPortfolioStockUnits(latestBuy.Stock), latestBuy.Stock)
+
+	return true
+}
+
+func executeCancelBuy(cmd command) bool {
+	account := accountStore.GetAccount(cmd.UserID)
+
+	if account == nil {
+		log.Infof("User %s does not have an account", cmd.UserID)
+		return false
+	}
+
+	// CommitBuy has no additional args to parse! Everything is in cmd.
+
+	// Pop the latest Buy to get it out of the queue
+	latestBuy, found := account.PopLatestBuy()
+	if !found {
+		log.Infof("No active buys to cancel for %s", cmd.UserID)
+		return false
+	}
+
+	// Return the reserve amount to the user's balance
+	var reserve currency.Currency
+	reserve.Add(latestBuy.UnitPrice)
+	reserve.Mul(float64(latestBuy.Units))
+
+	log.Infof("Cancel buy for %s. Adding back %s", latestBuy.Stock, reserve)
+	log.Debugf("Before, user balance %s", account.Balance)
+
+	account.AddFunds(reserve)
+
+	log.Debugf("After, user balance %s", account.Balance)
 
 	return true
 }
