@@ -148,6 +148,10 @@ func executeCommand(cmd command) error {
 		status = executeBuy(cmd)
 	case commands.Sell:
 		status = executeSell(cmd)
+	case commands.CommitBuy:
+		status = executeCommitBuy(cmd)
+	case commands.CommitSell:
+		status = executeCommitSell(cmd)
 	default:
 		log.Warningf("Not implemented: %s", cmd.Name)
 		return nil
@@ -263,7 +267,7 @@ func executeBuy(cmd command) bool {
 	dollarAmount.Sub(cashRemainder)
 	account.RemoveFunds(dollarAmount)
 
-	return account.AddToBuyQueue(stockSymbol, wholeShares, userQuote.Price)
+	return account.AddToBuyStack(stockSymbol, wholeShares, userQuote.Price)
 }
 
 func executeSell(cmd command) bool {
@@ -300,6 +304,72 @@ func executeSell(cmd command) bool {
 
 	// Do not add the money back to the account until the sale is committed
 
-	return account.AddToSellQueue(stockSymbol, wholeShares, userQuote.Price)
+	return account.AddToSellStack(stockSymbol, wholeShares, userQuote.Price)
 }
 
+func executeCommitBuy(cmd command) bool 
+{
+	account := accountStore.GetAccount(cmd.UserID)
+
+	if account == nil {
+		log.Noticef("User %s does not have an account", account)
+		return false;
+	}
+
+	if len(cmd.Args) > 0 {
+		// too many
+		log.Errorf("Wrong number of commands: `%s`", cmd.Args)
+		return false
+	}
+
+	action := account.BuyStack[len(account.BuyStack)-1]
+	if action.time < (time.Now() - time.Second() * 60)
+	{
+		// Quote is still valid
+		//Add the stocks to the users account, remove the buy from the stack
+		log.Notice("User %s confirmed purchase of %s shares of stock %s at $%s per share", cmd.UserID, action.units, action.stock, action.unitPrice)
+		account.addStockToPortfolio(action.stock, action.units)
+		account.RemoveFromBuyStack()
+	}
+	else
+	{
+		// Quote has expired
+		log.Notice("User %s  was unable to confirm purchase of  %s shares of stock %s at $%s per share since quote was expired", cmd.UserID, action.units, action.stock, action.unitPrice)
+		account.AddFunds(action.units * action.unitPrice)
+		account.RemoveFromBuyStack()
+	}
+
+}
+
+func executeCommitSell(cmd command) bool 
+{
+	account := accountStore.GetAccount(cmd.UserID)
+
+	if account == nil {
+		log.Noticef("User %s does not have an account", account)
+		return false;
+	}
+
+	if len(cmd.Args) > 0 {
+		// too many
+		log.Errorf("Wrong number of commands: `%s`", cmd.Args)
+		return false
+	}
+
+	action := account.SellStack[len(account.SellStack)-1]
+	if account.SellStack[len(account.SellStack)-1].time < (time.Now() - time.Second() * 60){
+		// Quote is still valid
+		//Remove stock from portfolio and credit user the value
+		log.Notice("User %s confirmed sale of %s shares of stock %s at $%s per share", cmd.UserID, action.units, action.stock, action.unitPrice)
+		account.removeStockFromPortfolio(action.stock, action.units)
+		account.AddFunds(action.units * action.unitPrice)
+		account.RemoveFromSellStack()
+	}
+	else
+	{
+		// Quote has expired
+		//Simply remove the sell command from the stack, as it is no longer valid
+		log.Notice("User %s  was unable to confirm sale of  %s shares of stock %s at $%s per share since quote was expired", cmd.UserID, action.units, action.stock, action.unitPrice)
+		account.RemoveFromSellStack()
+	}
+}

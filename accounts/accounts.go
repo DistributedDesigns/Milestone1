@@ -23,7 +23,7 @@ type Action struct {
 // Account : State of a particular account
 type Account struct {
 	Balance	currency.Currency
-	BuyQueue, SellQueue []Action
+	BuyStack, SellStack []Action
 	portfolio map[string]int
 }
 
@@ -81,28 +81,54 @@ func (as AccountStore) GetAccount(name string) *Account {
 	return account
 }
 
-// AddToBuyQueue ; Add a stock S to the buy queue
-func (ac Account) AddToBuyQueue(stock string, units uint, unitPrice currency.Currency) bool {
+// AddToBuyStack ; Add a stock S to the buy Stack
+func (ac Account) AddToBuyStack(stock string, units uint, unitPrice currency.Currency) bool {
 	currentAction := Action{
 		time: time.Now(),
 		stock: stock,
 		units: units,
 		unitPrice: unitPrice,
 	}
-	ac.BuyQueue = append(ac.BuyQueue, currentAction)
+	ac.BuyStack = append(ac.BuyStack, currentAction)
 	return true
 }
 
-// AddToSellQueue ; Add a stock S to the buy queue
-func (ac Account) AddToSellQueue(stock string, units uint, unitPrice currency.Currency) bool {
+// AddToSellStack ; Add a stock S to the buy Stack
+func (ac Account) AddToSellStack(stock string, units uint, unitPrice currency.Currency) bool {
 	currentAction := Action{
 		time: time.Now(),
 		stock: stock,
 		units: units,
 		unitPrice: unitPrice,
 	}
-	ac.SellQueue = append(ac.SellQueue, currentAction)
+	ac.SellStack = append(ac.SellStack, currentAction)
 	return true
+}
+
+func (ac Account) RemoveFromBuyStack() bool
+{
+	if len(ac.BuyStack) <= 0
+	{
+		return false
+	}
+	else
+	{
+		ac.BuyStack := ac.BuyStack[:len(ac.BuyStack) - 1]
+		return true
+	}
+}
+
+func (ac Account) RemoveFromSellStack() bool
+{
+	if len(ac.SellStack) <= 0
+	{
+		return false
+	}
+	else
+	{
+		ac.SellStack := ac.SellStack[:len(ac.SellStack) - 1]
+		return true
+	}
 }
 
 // CreateAccount : Initialize a new account. Fail if one already exists
