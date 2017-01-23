@@ -20,14 +20,18 @@ type Action struct {
 	UnitPrice currency.Currency
 }
 
+// ActionQueue : Ordered queue of actions. Oldest on left, newest on right.
+type ActionQueue []Action
+
 // Portfolio : User's stock holdings, stockName -> quantity
 type Portfolio map[string]uint
 
 // Account : State of a particular account
 type Account struct {
-	Balance             currency.Currency
-	BuyQueue, SellQueue []Action
-	Portfolio           Portfolio
+	Balance   currency.Currency
+	BuyQueue  ActionQueue
+	SellQueue ActionQueue
+	Portfolio Portfolio
 }
 
 // Accounts : Maps name -> Account
@@ -141,13 +145,13 @@ func (ac *Account) RemoveFunds(amount currency.Currency) error {
 	return nil
 }
 
-// PopLatestBuy : Returns and removes the most recent Buy in a queue
-func (ac *Account) PopLatestBuy() (Action, bool) {
+// PopNewest : Removes and returns the most recent action in a queue
+func (aq *ActionQueue) PopNewest() (Action, bool) {
 	// gobuild says:
 	//   Can't use Action as nil so we send back a bool to indicate hit/miss
 
 	// Check for empty queue
-	queueLen := len(ac.BuyQueue)
+	queueLen := len(*aq)
 	if queueLen == 0 {
 		return Action{}, false
 	}
@@ -155,7 +159,7 @@ func (ac *Account) PopLatestBuy() (Action, bool) {
 	// Last item appended to queue will be the most recent.
 	// Copy the last item then shrink the queue.
 	var latestAction Action
-	latestAction, ac.BuyQueue = ac.BuyQueue[queueLen-1], ac.BuyQueue[:queueLen-1]
+	latestAction, *aq = (*aq)[queueLen-1], (*aq)[:queueLen-1]
 
 	return latestAction, true
 }
