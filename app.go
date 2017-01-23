@@ -12,25 +12,25 @@ import (
 	"github.com/op/go-logging"
 
 	"github.com/distributeddesigns/milestone1/accounts"
+	"github.com/distributeddesigns/milestone1/auditlogger"
 	"github.com/distributeddesigns/milestone1/commands"
 	"github.com/distributeddesigns/milestone1/quotecache"
 )
 
 // Globals
 var (
-	consoleLog = logging.MustGetLogger("audit")
+	consoleLog = logging.MustGetLogger("console")
 
 	logLevel = flag.String("loglevel", "WARNING", "CRITICAL, ERROR, WARNING,  NOTICE, INFO, DEBUG")
 
 	accountStore = accounts.NewAccountStore()
 )
 
-// I suck at namespacing and don't want to type commands.Command over and over
-type command commands.Command
-
 func main() {
 	flag.Parse()
-	initLogging()
+	consoleLoggingInit()
+	closeAuditLogger := auditlogger.Init()
+	defer closeAuditLogger()
 
 	// Find the workload file and open it
 	// -  Read each line and:
@@ -66,6 +66,9 @@ func main() {
 			// if it fails, log and continue on
 			consoleLog.Errorf("Command execution error! cmd # %3d message: %s", cmd.ID, err.Error())
 		}
+
+		// Record command in the audit log
+		auditlogger.LogCommand(cmd)
 	}
 
 	// catch read errors
@@ -77,7 +80,7 @@ func main() {
 	consoleLog.Debugf("Done!")
 }
 
-func initLogging() {
+func consoleLoggingInit() {
 	// TODO: DONE 1. Make a logger that outputs to console
 	// TODO: DONE 2. Set variable output levels based on runtime flag
 	// TODO: 3. Log stuff into a file
@@ -103,7 +106,7 @@ func initLogging() {
 	logging.SetBackend(consoleBackendFormattedAndLeveled)
 }
 
-func parseCommand(s string) command {
+func parseCommand(s string) commands.Command {
 	consoleLog.Debugf("Parsing: %s", s)
 
 	// Convert to a proper .csv, then parse
@@ -121,7 +124,7 @@ func parseCommand(s string) command {
 	// TODO: Deal with the final "DUMPLOG,./testLOG"
 	ID, _ := strconv.Atoi(parts[0])
 	name, _ := commands.ToCommandType(parts[1])
-	parsed := command{
+	parsed := commands.Command{
 		ID:     ID,
 		Name:   name,
 		UserID: parts[2],
@@ -133,7 +136,7 @@ func parseCommand(s string) command {
 	return parsed
 }
 
-func executeCommand(cmd command) error {
+func executeCommand(cmd commands.Command) error {
 	// Each command will return true if everything is okay, false if error
 	var status bool
 
@@ -171,7 +174,7 @@ func executeCommand(cmd command) error {
 }
 
 // Add funds to the user's account
-func executeAdd(cmd command) bool {
+func executeAdd(cmd commands.Command) bool {
 	// Finish parsing the rest of the command.
 	// ADD should have an amount passed
 
@@ -214,7 +217,7 @@ func executeAdd(cmd command) bool {
 }
 
 // Gets a quote from the quoteserver
-func executeQuote(cmd command) bool {
+func executeQuote(cmd commands.Command) bool {
 	// Get the stock from the command
 	stock := cmd.Args[0]
 	if stock == "" {
@@ -234,7 +237,7 @@ func executeQuote(cmd command) bool {
 	return true
 }
 
-func executeBuy(cmd command) bool {
+func executeBuy(cmd commands.Command) bool {
 	//Gotta check users money and add a reserved portion
 	account := accountStore.GetAccount(cmd.UserID)
 
@@ -274,7 +277,7 @@ func executeBuy(cmd command) bool {
 	return account.AddToBuyQueue(stockSymbol, wholeShares, userQuote.Price)
 }
 
-func executeCommitBuy(cmd command) bool {
+func executeCommitBuy(cmd commands.Command) bool {
 	account := accountStore.GetAccount(cmd.UserID)
 
 	if account == nil {
@@ -305,7 +308,7 @@ func executeCommitBuy(cmd command) bool {
 	return true
 }
 
-func executeCancelBuy(cmd command) bool {
+func executeCancelBuy(cmd commands.Command) bool {
 	account := accountStore.GetAccount(cmd.UserID)
 
 	if account == nil {
@@ -337,7 +340,7 @@ func executeCancelBuy(cmd command) bool {
 	return true
 }
 
-func executeSell(cmd command) bool {
+func executeSell(cmd commands.Command) bool {
 	account := accountStore.GetAccount(cmd.UserID)
 
 	if account == nil {
@@ -378,7 +381,7 @@ func executeSell(cmd command) bool {
 	return account.AddToSellQueue(stockSymbol, wholeShares, userQuote.Price)
 }
 
-func executeCommitSell(cmd command) bool {
+func executeCommitSell(cmd commands.Command) bool {
 	account := accountStore.GetAccount(cmd.UserID)
 
 	if account == nil {
@@ -412,7 +415,7 @@ func executeCommitSell(cmd command) bool {
 	return true
 }
 
-func executeCancelSell(cmd command) bool {
+func executeCancelSell(cmd commands.Command) bool {
 	account := accountStore.GetAccount(cmd.UserID)
 
 	if account == nil {

@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	consoleLog = logging.MustGetLogger("audit")
+	consoleLog = logging.MustGetLogger("console")
 )
 
 // Action : A Buy or Sell request that can expire

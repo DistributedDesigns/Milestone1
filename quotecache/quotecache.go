@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/distributeddesigns/currency"
+
+	"github.com/distributeddesigns/milestone1/auditlogger"
 )
 
 // Quote : Stored response from the quoteserver
@@ -61,6 +63,26 @@ func GetQuote(userID, stock string, transactionID int) (Quote, error) {
 	userQuote = quoteCache[stock][userID]
 	userQuote.TransactionID = transactionID
 	quoteCache[stock][userID] = userQuote
+
+	// Write the cache hit to the audit log
+	// FIXME : Should be able to pass Quote to logger.
+	xmlElement := fmt.Sprintf(`
+	<quoteServer>
+		<timestamp>%d</timestamp>
+		<server>QSRV1</server>
+		<transactionNum>%d</transactionNum>
+		<price>%.2f</price>
+		<stockSymbol>%s</stockSymbol>
+		<username>%s</username>
+		<quoteServerTime>%d</quoteServerTime>
+		<cryptokey>%s</cryptokey>
+	</quoteServer>`,
+		time.Now().Unix()*1000, transactionID, userQuote.Price.ToFloat(),
+		userQuote.Stock, userQuote.UserID, userQuote.Timestamp.Unix()*1000,
+		userQuote.Cryptokey,
+	)
+
+	auditlogger.LogQuoteServerHit(xmlElement)
 
 	return userQuote, nil
 }
