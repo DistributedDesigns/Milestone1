@@ -18,7 +18,7 @@ import (
 
 // Globals
 var (
-	log = logging.MustGetLogger("audit")
+	consoleLog = logging.MustGetLogger("audit")
 
 	logLevel = flag.String("loglevel", "WARNING", "CRITICAL, ERROR, WARNING,  NOTICE, INFO, DEBUG")
 
@@ -42,21 +42,21 @@ func main() {
 	infile := flag.Arg(0)
 	if _, err := os.Stat(infile); os.IsNotExist(err) {
 		// can't find input; bail!
-		log.Critical(err.Error())
+		consoleLog.Critical(err.Error())
 		os.Exit(1)
 	} else if err != nil {
-		log.Error(err.Error())
+		consoleLog.Error(err.Error())
 	}
 
 	// open the file
 	file, err := os.Open(infile)
 	if err != nil {
-		log.Critical(err.Error())
+		consoleLog.Critical(err.Error())
 		os.Exit(1)
 	}
 	defer file.Close()
 
-	log.Debugf("Opened %s", file.Name())
+	consoleLog.Debugf("Opened %s", file.Name())
 
 	// process all lines
 	scanner := bufio.NewScanner(file)
@@ -64,17 +64,17 @@ func main() {
 		cmd := parseCommand(scanner.Text())
 		if err := executeCommand(cmd); err != nil {
 			// if it fails, log and continue on
-			log.Errorf("Command execution error! cmd # %3d message: %s", cmd.ID, err.Error())
+			consoleLog.Errorf("Command execution error! cmd # %3d message: %s", cmd.ID, err.Error())
 		}
 	}
 
 	// catch read errors
 	if err := scanner.Err(); err != nil {
-		log.Critical(err.Error())
+		consoleLog.Critical(err.Error())
 		os.Exit(1)
 	}
 
-	log.Debugf("Done!")
+	consoleLog.Debugf("Done!")
 }
 
 func initLogging() {
@@ -104,7 +104,7 @@ func initLogging() {
 }
 
 func parseCommand(s string) command {
-	log.Debugf("Parsing: %s", s)
+	consoleLog.Debugf("Parsing: %s", s)
 
 	// Convert to a proper .csv, then parse
 	// change `[100] STUFF,...` -> `100,STUFF,...`
@@ -128,7 +128,7 @@ func parseCommand(s string) command {
 		Args:   parts[3:],
 	}
 
-	log.Debugf("Parsed as: %+v", parsed)
+	consoleLog.Debugf("Parsed as: %+v", parsed)
 
 	return parsed
 }
@@ -156,15 +156,15 @@ func executeCommand(cmd command) error {
 	case commands.CancelSell:
 		status = executeCancelSell(cmd)
 	default:
-		log.Warningf("Not implemented: %s", cmd.Name)
+		consoleLog.Warningf("Not implemented: %s", cmd.Name)
 		return nil
 	}
 
 	// report our status
 	if status {
-		log.Debugf("Finished command %d", cmd.ID)
+		consoleLog.Debugf("Finished command %d", cmd.ID)
 	} else {
-		log.Debugf("Finished command %d with errors", cmd.ID)
+		consoleLog.Debugf("Finished command %d with errors", cmd.ID)
 	}
 
 	return nil
@@ -178,11 +178,11 @@ func executeAdd(cmd command) bool {
 	// Sanitize the command
 	if len(cmd.Args) != 1 {
 		// too many
-		log.Errorf("Wrong number of commands: `%s`", cmd.Args)
+		consoleLog.Errorf("Wrong number of commands: `%s`", cmd.Args)
 		return false
 	} else if cmd.Args[0] == "" {
 		// missing
-		log.Error("No amount passed to ADD")
+		consoleLog.Error("No amount passed to ADD")
 		return false
 	}
 
@@ -190,25 +190,25 @@ func executeAdd(cmd command) bool {
 	amount, err := currency.NewFromString(cmd.Args[0])
 	if err != nil {
 		// Bail on parse failure
-		log.Error("Failed to parse currency")
+		consoleLog.Error("Failed to parse currency")
 		return false
 	}
 
 	// Create an account if the user needs one
 	if !accountStore.HasAccount(cmd.UserID) {
-		log.Noticef("Creating account for %s", cmd.UserID)
+		consoleLog.Noticef("Creating account for %s", cmd.UserID)
 		if err := accountStore.CreateAccount(cmd.UserID); err != nil {
-			log.Error(err.Error())
+			consoleLog.Error(err.Error())
 			return false
 		}
 	}
 
 	// Add the amount
-	log.Infof("Adding %s to %s", amount, cmd.UserID)
+	consoleLog.Infof("Adding %s to %s", amount, cmd.UserID)
 	accountStore.Accounts[cmd.UserID].AddFunds(amount)
 
 	balance := accountStore.Accounts[cmd.UserID].Balance
-	log.Infof("New balance for %s is %s", cmd.UserID, balance)
+	consoleLog.Infof("New balance for %s is %s", cmd.UserID, balance)
 
 	return true
 }
@@ -218,18 +218,18 @@ func executeQuote(cmd command) bool {
 	// Get the stock from the command
 	stock := cmd.Args[0]
 	if stock == "" {
-		log.Error("No stock passed to QUOTE")
+		consoleLog.Error("No stock passed to QUOTE")
 		return false
 	}
 
 	// get a quote for the stock. (cache will determine if a fresh one is needed)
 	quote, err := quotecache.GetQuote(cmd.UserID, stock)
 	if err != nil {
-		log.Error(err.Error())
+		consoleLog.Error(err.Error())
 		return false
 	}
 
-	log.Noticef("Got quote: %+v", quote)
+	consoleLog.Noticef("Got quote: %+v", quote)
 	// send the quote to the user
 	return true
 }
@@ -239,7 +239,7 @@ func executeBuy(cmd command) bool {
 	account := accountStore.GetAccount(cmd.UserID)
 
 	if account == nil {
-		log.Noticef("User %s does not have an account", account)
+		consoleLog.Noticef("User %s does not have an account", account)
 		return false
 	}
 
@@ -247,25 +247,25 @@ func executeBuy(cmd command) bool {
 	dollarAmount, err := currency.NewFromString(cmd.Args[1])
 
 	if err != nil {
-		log.Noticef("Dollar amount %s is invalid", cmd.Args[1])
+		consoleLog.Noticef("Dollar amount %s is invalid", cmd.Args[1])
 		return false
 	}
 	//User wants to buy y worth of x shares.
 	userQuote, err := quotecache.GetQuote(cmd.UserID, stockSymbol)
 
 	if err != nil {
-		log.Noticef("Quote of stock %s for user %s is invalid", stockSymbol, cmd.UserID)
+		consoleLog.Noticef("Quote of stock %s for user %s is invalid", stockSymbol, cmd.UserID)
 		return false
 	}
 
 	wholeShares, cashRemainder := userQuote.Price.FitsInto(dollarAmount)
 
 	if wholeShares == 0 {
-		log.Notice("Amount specified to buy less than single stock unit")
+		consoleLog.Notice("Amount specified to buy less than single stock unit")
 		return true
 	}
 
-	log.Infof("User %s set purchase order for %d shares of stock %s", cmd.UserID, wholeShares, stockSymbol)
+	consoleLog.Infof("User %s set purchase order for %d shares of stock %s", cmd.UserID, wholeShares, stockSymbol)
 
 	// Remove the funds from user now to prevent double spending
 	dollarAmount.Sub(cashRemainder)
@@ -278,7 +278,7 @@ func executeCommitBuy(cmd command) bool {
 	account := accountStore.GetAccount(cmd.UserID)
 
 	if account == nil {
-		log.Infof("User %s does not have an account", cmd.UserID)
+		consoleLog.Infof("User %s does not have an account", cmd.UserID)
 		return false
 	}
 
@@ -290,17 +290,17 @@ func executeCommitBuy(cmd command) bool {
 	// If there's no Buy or it's expired, don't change the user account
 	// and log the command failure.
 	if !found || newestBuy.IsExpired() {
-		log.Infof("No active buys to commit for %s", cmd.UserID)
+		consoleLog.Infof("No active buys to commit for %s", cmd.UserID)
 		return false
 	}
 
 	// If there is an active Buy give the user the stock quantity.
-	log.Infof("Committing buy for user %s for %d unit of %s", cmd.UserID, newestBuy.Units, newestBuy.Stock)
-	log.Debugf("Before, user has %d of %s", account.GetPortfolioStockUnits(newestBuy.Stock), newestBuy.Stock)
+	consoleLog.Infof("Committing buy for user %s for %d unit of %s", cmd.UserID, newestBuy.Units, newestBuy.Stock)
+	consoleLog.Debugf("Before, user has %d of %s", account.GetPortfolioStockUnits(newestBuy.Stock), newestBuy.Stock)
 
 	account.AddStockToPortfolio(newestBuy.Stock, newestBuy.Units)
 
-	log.Debugf("After, user has %d of %s", account.GetPortfolioStockUnits(newestBuy.Stock), newestBuy.Stock)
+	consoleLog.Debugf("After, user has %d of %s", account.GetPortfolioStockUnits(newestBuy.Stock), newestBuy.Stock)
 
 	return true
 }
@@ -309,7 +309,7 @@ func executeCancelBuy(cmd command) bool {
 	account := accountStore.GetAccount(cmd.UserID)
 
 	if account == nil {
-		log.Infof("User %s does not have an account", cmd.UserID)
+		consoleLog.Infof("User %s does not have an account", cmd.UserID)
 		return false
 	}
 
@@ -318,7 +318,7 @@ func executeCancelBuy(cmd command) bool {
 	// Pop the latest Buy to get it out of the queue
 	newestBuy, found := account.BuyQueue.PopNewest()
 	if !found {
-		log.Infof("No active buys to cancel for %s", cmd.UserID)
+		consoleLog.Infof("No active buys to cancel for %s", cmd.UserID)
 		return false
 	}
 
@@ -327,12 +327,12 @@ func executeCancelBuy(cmd command) bool {
 	reserve.Add(newestBuy.UnitPrice)
 	reserve.Mul(float64(newestBuy.Units))
 
-	log.Infof("Cancel buy for %s. Adding back %s", newestBuy.Stock, reserve)
-	log.Debugf("Before, user balance %s", account.Balance)
+	consoleLog.Infof("Cancel buy for %s. Adding back %s", newestBuy.Stock, reserve)
+	consoleLog.Debugf("Before, user balance %s", account.Balance)
 
 	account.AddFunds(reserve)
 
-	log.Debugf("After, user balance %s", account.Balance)
+	consoleLog.Debugf("After, user balance %s", account.Balance)
 
 	return true
 }
@@ -341,7 +341,7 @@ func executeSell(cmd command) bool {
 	account := accountStore.GetAccount(cmd.UserID)
 
 	if account == nil {
-		log.Noticef("User %s does not have an account", account)
+		consoleLog.Noticef("User %s does not have an account", account)
 		return false
 	}
 
@@ -349,25 +349,25 @@ func executeSell(cmd command) bool {
 	dollarAmount, err := currency.NewFromString(cmd.Args[1])
 
 	if err != nil {
-		log.Noticef("Dollar amount %s is invalid", cmd.Args[1])
+		consoleLog.Noticef("Dollar amount %s is invalid", cmd.Args[1])
 		return false
 	}
 
 	userQuote, err := quotecache.GetQuote(cmd.UserID, stockSymbol)
 
 	if err != nil {
-		log.Noticef("Quote of stock %s for user %s is invalid", stockSymbol, cmd.UserID)
+		consoleLog.Noticef("Quote of stock %s for user %s is invalid", stockSymbol, cmd.UserID)
 		return false
 	}
 
 	wholeShares, _ := userQuote.Price.FitsInto(dollarAmount)
 
 	if wholeShares == 0 {
-		log.Notice("Amount specified to sell less than single stock unit")
+		consoleLog.Notice("Amount specified to sell less than single stock unit")
 		return true
 	}
 
-	log.Infof("User %s set sale order for %d shares of stock %s at %s", cmd.UserID, wholeShares, stockSymbol, userQuote.Price)
+	consoleLog.Infof("User %s set sale order for %d shares of stock %s at %s", cmd.UserID, wholeShares, stockSymbol, userQuote.Price)
 
 	// Remove stock now to prevent double selling
 	if stockWasRemoved := account.RemoveStockFromPortfolio(stockSymbol, wholeShares); !stockWasRemoved {
@@ -382,7 +382,7 @@ func executeCommitSell(cmd command) bool {
 	account := accountStore.GetAccount(cmd.UserID)
 
 	if account == nil {
-		log.Infof("User %s does not have an account", cmd.UserID)
+		consoleLog.Infof("User %s does not have an account", cmd.UserID)
 		return false
 	}
 
@@ -391,7 +391,7 @@ func executeCommitSell(cmd command) bool {
 	// Pop the latest Sell to get it out of the queue
 	newestSell, found := account.SellQueue.PopNewest()
 	if !found {
-		log.Infof("No active sells to cancel for %s", cmd.UserID)
+		consoleLog.Infof("No active sells to cancel for %s", cmd.UserID)
 		return false
 	}
 
@@ -400,14 +400,14 @@ func executeCommitSell(cmd command) bool {
 	profit.Add(newestSell.UnitPrice)
 	profit.Mul(float64(newestSell.Units))
 
-	log.Infof("Commit sell for %s of %d units of %s at %s. Adding %s",
+	consoleLog.Infof("Commit sell for %s of %d units of %s at %s. Adding %s",
 		cmd.UserID, newestSell.Units, newestSell.Stock, newestSell.UnitPrice, profit,
 	)
-	log.Debugf("Before, user balance %s", account.Balance)
+	consoleLog.Debugf("Before, user balance %s", account.Balance)
 
 	account.AddFunds(profit)
 
-	log.Debugf("After, user balance %s", account.Balance)
+	consoleLog.Debugf("After, user balance %s", account.Balance)
 
 	return true
 }
@@ -416,7 +416,7 @@ func executeCancelSell(cmd command) bool {
 	account := accountStore.GetAccount(cmd.UserID)
 
 	if account == nil {
-		log.Infof("User %s does not have an account", cmd.UserID)
+		consoleLog.Infof("User %s does not have an account", cmd.UserID)
 		return false
 	}
 
@@ -424,17 +424,17 @@ func executeCancelSell(cmd command) bool {
 
 	newestSell, found := account.SellQueue.PopNewest()
 	if !found {
-		log.Infof("No active sells to cancel for %s", cmd.UserID)
+		consoleLog.Infof("No active sells to cancel for %s", cmd.UserID)
 		return false
 	}
 
 	// Add the stock back to the user's portfolio
-	log.Infof("Cancel sell for %s. Adding back %d units", newestSell.Stock, newestSell.Units)
-	log.Debugf("Before, user portfolio: %d x %s", account.Portfolio[newestSell.Stock], newestSell.Stock)
+	consoleLog.Infof("Cancel sell for %s. Adding back %d units", newestSell.Stock, newestSell.Units)
+	consoleLog.Debugf("Before, user portfolio: %d x %s", account.Portfolio[newestSell.Stock], newestSell.Stock)
 
 	account.AddStockToPortfolio(newestSell.Stock, newestSell.Units)
 
-	log.Debugf("After, user portfolio: %d x %s", account.Portfolio[newestSell.Stock], newestSell.Stock)
+	consoleLog.Debugf("After, user portfolio: %d x %s", account.Portfolio[newestSell.Stock], newestSell.Stock)
 
 	return true
 }

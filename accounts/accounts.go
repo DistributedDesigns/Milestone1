@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	log = logging.MustGetLogger("audit")
+	consoleLog = logging.MustGetLogger("audit")
 )
 
 // Action : A Buy or Sell request that can expire
@@ -62,7 +62,7 @@ func (ac *Account) AddStockToPortfolio(stock string, units uint) {
 func (ac *Account) RemoveStockFromPortfolio(stock string, units uint) bool {
 	currentUnits, ok := ac.Portfolio[stock]
 	if !ok || currentUnits-units < 0 {
-		log.Notice("User does not have enough stock to sell")
+		consoleLog.Notice("User does not have enough stock to sell")
 		return false
 	}
 	ac.Portfolio[stock] = currentUnits - units
