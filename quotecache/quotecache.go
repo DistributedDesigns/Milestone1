@@ -78,7 +78,7 @@ func GetQuote(userID, stock string, transactionID int) (Quote, error) {
 		<cryptokey>%s</cryptokey>
 	</quoteServer>`,
 		time.Now().Unix()*1000, transactionID, userQuote.Price.ToFloat(),
-		userQuote.Stock, userQuote.UserID, userQuote.Timestamp.Unix()*1000,
+		userQuote.Stock, userQuote.UserID, userQuote.Timestamp.Unix(),
 		userQuote.Cryptokey,
 	)
 
@@ -96,7 +96,7 @@ func updateQuoteCache(userID, stock string) error {
 	defer conn.Close()
 
 	// Send that request!
-	request := fmt.Sprintf("%s,%s", stock, userID)
+	request := fmt.Sprintf("%s,%s\n", stock, userID)
 	conn.Write([]byte(request))
 
 	// listen for response
