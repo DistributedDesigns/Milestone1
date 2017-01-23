@@ -223,7 +223,7 @@ func executeQuote(cmd command) bool {
 	}
 
 	// get a quote for the stock. (cache will determine if a fresh one is needed)
-	quote, err := quotecache.GetQuote(cmd.UserID, stock)
+	quote, err := quotecache.GetQuote(cmd.UserID, stock, cmd.ID)
 	if err != nil {
 		consoleLog.Error(err.Error())
 		return false
@@ -251,7 +251,7 @@ func executeBuy(cmd command) bool {
 		return false
 	}
 	//User wants to buy y worth of x shares.
-	userQuote, err := quotecache.GetQuote(cmd.UserID, stockSymbol)
+	userQuote, err := quotecache.GetQuote(cmd.UserID, stockSymbol, cmd.ID)
 
 	if err != nil {
 		consoleLog.Noticef("Quote of stock %s for user %s is invalid", stockSymbol, cmd.UserID)
@@ -353,7 +353,7 @@ func executeSell(cmd command) bool {
 		return false
 	}
 
-	userQuote, err := quotecache.GetQuote(cmd.UserID, stockSymbol)
+	userQuote, err := quotecache.GetQuote(cmd.UserID, stockSymbol, cmd.ID)
 
 	if err != nil {
 		consoleLog.Noticef("Quote of stock %s for user %s is invalid", stockSymbol, cmd.UserID)
