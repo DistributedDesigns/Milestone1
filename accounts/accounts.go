@@ -6,25 +6,28 @@ import (
 
 	"github.com/distributeddesigns/currency"
 	"github.com/op/go-logging"
-
 )
 
 var (
 	log = logging.MustGetLogger("audit")
 )
 
+// Action : A Buy or Sell request that can expire
 type Action struct {
-	time	time.Time
-	stock	string
-	units	uint
-	unitPrice currency.Currency
+	Time      time.Time
+	Stock     string
+	Units     uint
+	UnitPrice currency.Currency
 }
+
+// Portfolio : User's stock holdings, stockName -> quantity
+type Portfolio map[string]uint
 
 // Account : State of a particular account
 type Account struct {
-	Balance	currency.Currency
+	Balance             currency.Currency
 	BuyQueue, SellQueue []Action
-	portfolio map[string]int
+	Portfolio           Portfolio
 }
 
 // Accounts : Maps name -> Account
@@ -32,7 +35,7 @@ type Accounts map[string]*Account
 
 // AccountStore : A collection of accouunts
 type AccountStore struct {
-	Accounts Accounts
+	Accounts map[string]*Account
 }
 
 // NewAccountStore : A constructor that returns an initialized AccountStore
@@ -42,27 +45,29 @@ func NewAccountStore() *AccountStore {
 	return &as
 }
 
-func (ac Account) addStockToPortfolio(stock string, units int) bool {
-	currentUnits, ok := ac.portfolio[stock]
+// AddStockToPortfolio : Give a user some stock
+func (ac *Account) AddStockToPortfolio(stock string, units uint) {
+	currentUnits, ok := ac.Portfolio[stock]
 	if !ok {
 		currentUnits = 0
 	}
-	ac.portfolio[stock] = currentUnits + units
-	return true
+	ac.Portfolio[stock] = currentUnits + units
 }
 
-func (ac Account) removeStockFromPortfolio(stock string, units int) bool {
-	currentUnits, ok := ac.portfolio[stock]
-	if !ok || currentUnits - units < 0{
+// RemoveStockFromPortfolio : Remove stocks from a user
+func (ac *Account) RemoveStockFromPortfolio(stock string, units uint) bool {
+	currentUnits, ok := ac.Portfolio[stock]
+	if !ok || currentUnits-units < 0 {
 		log.Notice("User does not have enough stock to sell")
 		return false
 	}
-	ac.portfolio[stock] = currentUnits - units
+	ac.Portfolio[stock] = currentUnits - units
 	return true
 }
 
-func (ac Account) getPortfolioStockUnits(stock string) int {
-	return ac.portfolio[stock]
+// GetPortfolioStockUnits : Number of units users holds of a stock
+func (ac *Account) GetPortfolioStockUnits(stock string) uint {
+	return ac.Portfolio[stock]
 
 }
 
@@ -76,30 +81,30 @@ func (as AccountStore) HasAccount(name string) bool {
 func (as AccountStore) GetAccount(name string) *Account {
 	account, ok := as.Accounts[name]
 	if !ok {
-		return nil;
+		return nil
 	}
 	return account
 }
 
 // AddToBuyQueue ; Add a stock S to the buy queue
-func (ac Account) AddToBuyQueue(stock string, units uint, unitPrice currency.Currency) bool {
+func (ac *Account) AddToBuyQueue(stock string, units uint, unitPrice currency.Currency) bool {
 	currentAction := Action{
-		time: time.Now(),
-		stock: stock,
-		units: units,
-		unitPrice: unitPrice,
+		Time:      time.Now(),
+		Stock:     stock,
+		Units:     units,
+		UnitPrice: unitPrice,
 	}
 	ac.BuyQueue = append(ac.BuyQueue, currentAction)
 	return true
 }
 
 // AddToSellQueue ; Add a stock S to the buy queue
-func (ac Account) AddToSellQueue(stock string, units uint, unitPrice currency.Currency) bool {
+func (ac *Account) AddToSellQueue(stock string, units uint, unitPrice currency.Currency) bool {
 	currentAction := Action{
-		time: time.Now(),
-		stock: stock,
-		units: units,
-		unitPrice: unitPrice,
+		Time:      time.Now(),
+		Stock:     stock,
+		Units:     units,
+		UnitPrice: unitPrice,
 	}
 	ac.SellQueue = append(ac.SellQueue, currentAction)
 	return true
@@ -115,19 +120,48 @@ func (as AccountStore) CreateAccount(name string) error {
 	// Add account with initial values
 	as.Accounts[name] = &Account{}
 
+	// Initialize the account's portfolio
+	as.Accounts[name].Portfolio = make(Portfolio)
+
 	return nil
 }
 
 // AddFunds : Increases the balance of the account
-func (a *Account) AddFunds(amount currency.Currency) {
+func (ac *Account) AddFunds(amount currency.Currency) {
 	// Only allow > $0.00 to be added
-	a.Balance.Add(amount)
+	ac.Balance.Add(amount)
 }
 
-func (a *Account) RemoveFunds(amount currency.Currency) error {
-	err := a.Balance.Sub(amount)
+// RemoveFunds : Decrease balance of the account
+func (ac *Account) RemoveFunds(amount currency.Currency) error {
+	err := ac.Balance.Sub(amount)
 	if err != nil {
 		return errors.New("Insufficient Funds")
 	}
 	return nil
+}
+
+// PopLatestBuy : Returns and removes the most recent Buy in a queue
+func (ac *Account) PopLatestBuy() (Action, bool) {
+	// gobuild says:
+	//   Can't use Action as nil so we send back a bool to indicate hit/miss
+
+	// Check for empty queue
+	queueLen := len(ac.BuyQueue)
+	if queueLen == 0 {
+		return Action{}, false
+	}
+
+	// Last item appended to queue will be the most recent.
+	// Copy the last item then shrink the queue.
+	var latestAction Action
+	latestAction, ac.BuyQueue = ac.BuyQueue[queueLen-1], ac.BuyQueue[:queueLen-1]
+
+	return latestAction, true
+}
+
+// IsExpired : True if the action's timestamp is older than its validity window
+func (act *Action) IsExpired() bool {
+	expiry := act.Time.Add(time.Second * 60)
+	return time.Now().After(expiry)
 }

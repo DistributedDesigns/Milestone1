@@ -11,7 +11,6 @@ import (
 	"github.com/distributeddesigns/currency"
 	"github.com/op/go-logging"
 
-
 	"github.com/distributeddesigns/milestone1/accounts"
 	"github.com/distributeddesigns/milestone1/commands"
 	"github.com/distributeddesigns/milestone1/quotecache"
@@ -146,6 +145,8 @@ func executeCommand(cmd command) error {
 		status = executeQuote(cmd)
 	case commands.Buy:
 		status = executeBuy(cmd)
+	case commands.CommitBuy:
+		status = executeCommitBuy(cmd)
 	case commands.Sell:
 		status = executeSell(cmd)
 	default:
@@ -233,7 +234,7 @@ func executeBuy(cmd command) bool {
 
 	if account == nil {
 		log.Noticef("User %s does not have an account", account)
-		return false;
+		return false
 	}
 
 	stockSymbol := cmd.Args[0]
@@ -256,9 +257,9 @@ func executeBuy(cmd command) bool {
 	if wholeShares == 0 {
 		log.Notice("Amount specified to buy less than single stock unit")
 		return true
-	} else {
-		log.Notice("User %s set purchase order for %d shares of stock %s", cmd.UserID, wholeShares, stockSymbol)
 	}
+
+	log.Notice("User %s set purchase order for %d shares of stock %s", cmd.UserID, wholeShares, stockSymbol)
 
 	dollarAmount.Sub(cashRemainder)
 	account.RemoveFunds(dollarAmount)
@@ -266,12 +267,43 @@ func executeBuy(cmd command) bool {
 	return account.AddToBuyQueue(stockSymbol, wholeShares, userQuote.Price)
 }
 
+func executeCommitBuy(cmd command) bool {
+	account := accountStore.GetAccount(cmd.UserID)
+
+	if account == nil {
+		log.Infof("User %s does not have an account", cmd.UserID)
+		return false
+	}
+
+	// CommitBuy has no additional args to parse! Everything is in cmd.
+
+	// Get the most recent Buy from the user
+	latestBuy, found := account.PopLatestBuy()
+
+	// If there's no Buy or it's expired, don't change the user account
+	// and log the command failure.
+	if !found || latestBuy.IsExpired() {
+		log.Infof("No active buys for %s", cmd.UserID)
+		return false
+	}
+
+	// If there is an active Buy give the user the stock quantity.
+	log.Infof("Committing buy for user %s for %d unit of %s", cmd.UserID, latestBuy.Units, latestBuy.Stock)
+	log.Debugf("Before, user has %d of %s", account.GetPortfolioStockUnits(latestBuy.Stock), latestBuy.Stock)
+
+	account.AddStockToPortfolio(latestBuy.Stock, latestBuy.Units)
+
+	log.Debugf("After, user has %d of %s", account.GetPortfolioStockUnits(latestBuy.Stock), latestBuy.Stock)
+
+	return true
+}
+
 func executeSell(cmd command) bool {
 	account := accountStore.GetAccount(cmd.UserID)
 
 	if account == nil {
 		log.Noticef("User %s does not have an account", account)
-		return false;
+		return false
 	}
 
 	stockSymbol := cmd.Args[0]
@@ -302,4 +334,3 @@ func executeSell(cmd command) bool {
 
 	return account.AddToSellQueue(stockSymbol, wholeShares, userQuote.Price)
 }
-
