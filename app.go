@@ -452,7 +452,7 @@ func executeCancelSell(cmd command) bool {
 
 func executeSetBuyAmount(cmd command) bool {
 	userID := cmd.UserID
-	strAmount = cmd.Args[1]
+	strAmount := cmd.Args[1]
 	stock := cmd.Args[0]
 	account := accountStore.GetAccount(userID)
 
@@ -478,7 +478,7 @@ func executeSetBuyAmount(cmd command) bool {
 
 func executeSetSellAmount(cmd command) bool {
 	userID := cmd.UserID
-	strAmount = cmd.Args[1]
+	strAmount := cmd.Args[1]
 	stock := cmd.Args[0]
 	account := accountStore.GetAccount(userID)
 
@@ -512,7 +512,8 @@ func executeCancelSetBuy(cmd command) bool {
 		log.Infof("Automated buy for stock %s was not found for user %s", stock, userID)
 	} else {
 		log.Infof("User %s cancelled automated buy for %s", userID, stock)
-		account.AddFunds(Currency.NewFromFloat(refund))
+		refundCurrency, _ := currency.NewFromFloat(refund) //should never error, so squelched the error
+		account.AddFunds(refundCurrency)
 	}
 	return true
 }
