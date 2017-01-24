@@ -18,7 +18,7 @@ type AutoRequest struct{
 }
 
 // AutoRequestStore : Map stock -> user -> request
-type AutoRequestStore map[string](map[string]AutoRequest)
+type AutoRequestStore map[string]map[string]AutoRequest
 
 // NewAutoRequestStore :
 func NewAutoRequestStore() *AutoRequestStore {
@@ -63,7 +63,15 @@ func (ars *AutoRequestStore) CancelAutorequest(stock, userID string) (currency.C
 	return currency.Currency{}, errors.New(errMsg)
 }
 
-func (ars *AutoRequestStore) AutorequestExists(stock, userID string, amount currency.Currency) bool{
+func (ars *AutoRequestStore) AutorequestExists(stock, userID string) bool {
 	_, found := (*ars)[stock][userID]
 	return found
+}
+
+func (ars *AutoRequestStore) GetAutorequest(stock, userID string) (AutoRequest, error) {
+	userAutoRequest, found := (*ars)[stock][userID]
+	if found {
+		return userAutoRequest, nil
+	}
+	return AutoRequest{}, errors.New("No auto request")
 }
