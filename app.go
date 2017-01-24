@@ -232,6 +232,8 @@ func executeAdd(cmd command) bool {
 func executeQuote(cmd command) bool {
 	// Get the stock from the command
 	stock := cmd.Args[0]
+	account := accountStore.GetAccount(cmd.UserID)
+
 	if stock == "" {
 		log.Error("No stock passed to QUOTE")
 		return false
@@ -242,6 +244,31 @@ func executeQuote(cmd command) bool {
 	if err != nil {
 		log.Error(err.Error())
 		return false
+	}
+
+	//Check auto buy sell
+
+	for _, v := range autoBuyRequestStore[stock] {
+		//fmt.Printf("key[%s] value[%s]\n", k, v)
+		if v.Trigger.ToFloat() < quote.Price.ToFloat() {
+			//Fulfil buy action
+			wholeShares, cashRemainder := quote.Price.FitsInto(v.Amount)
+			account.AddStockToPortfolio(stock, wholeShares)
+			account.AddFunds(cashRemainder)
+			log.Infof("Buy trigger fired for stock %s at price %s for user %s", stock, quote.Price, cmd.UserID)
+		}
+	}
+
+	for _, v := range autoSellRequestStore[stock] {
+		//fmt.Printf("key[%s] value[%s]\n", k, v)
+		if v.Trigger.ToFloat() > quote.Price.ToFloat() {
+			//Fulfil buy action
+			wholeShares, cashRemainder := quote.Price.FitsInto(v.Amount)
+			account.RemoveStockFromPortfolio(stock, wholeShares)
+			v.Amount.Sub(cashRemainder)
+			account.AddFunds(v.Amount)
+			log.Infof("Sell trigger fired for stock %s at price %s for user %s", stock, quote.Price, cmd.UserID)
+		}
 	}
 
 	log.Noticef("Got quote: %+v", quote)
@@ -587,7 +614,6 @@ func executeSetBuyTrigger(cmd command) bool {
 	userAutorequest.Trigger = stockTriggerCost
 
 	// Add stocks to user portfolio
-	account.AddStockToPortfolio(stock, wholeShares)
 
 	return true
 }
