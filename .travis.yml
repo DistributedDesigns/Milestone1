@@ -4,6 +4,11 @@ go:
   - 1.7.4
   - tip
 
+# `go get` will look for imports here before going to GH.
+# Necessary since `go get` only pulls from master branch which won't
+# have changes from whatever is in a PR branch.
+go_import_path: github.com/distributeddesigns/milestone1
+
 install:
   - go get
   - go build .
