@@ -15,6 +15,7 @@ import (
 	"github.com/distributeddesigns/milestone1/auditlogger"
 	"github.com/distributeddesigns/milestone1/commands"
 	"github.com/distributeddesigns/milestone1/quotecache"
+	"github.com/distributeddesigns/milestone1/autorequests"
 )
 
 // Globals
@@ -24,6 +25,8 @@ var (
 	logLevel = flag.String("loglevel", "WARNING", "CRITICAL, ERROR, WARNING,  NOTICE, INFO, DEBUG")
 
 	accountStore = accounts.NewAccountStore()
+	autoBuyRequestStore = autorequests.NewAutoRequestStore()
+	autoSellRequestStore = autorequests.NewAutoRequestStore()
 )
 
 func main() {
@@ -158,6 +161,14 @@ func executeCommand(cmd commands.Command) error {
 		status = executeCommitSell(cmd)
 	case commands.CancelSell:
 		status = executeCancelSell(cmd)
+	case commands.SetBuyAmount:
+		status = executeSetBuyAmount(cmd)
+	case commands.SetSellAmount:
+		status = executeSetSellAmount(cmd)
+	case commands.CancelSetBuy:
+		status = executeCancelSetBuy(cmd)
+	case commands.CancelSetSell:
+		status = executeCancelSetSell(cmd)
 	default:
 		consoleLog.Warningf("Not implemented: %s", cmd.Name)
 		return nil
@@ -439,5 +450,91 @@ func executeCancelSell(cmd commands.Command) bool {
 
 	consoleLog.Debugf("After, user portfolio: %d x %s", account.Portfolio[newestSell.Stock], newestSell.Stock)
 
+	return true
+}
+
+func executeSetBuyAmount(cmd command) bool {
+	userID := cmd.UserID
+	strAmount := cmd.Args[1]
+	stock := cmd.Args[0]
+	account := accountStore.GetAccount(userID)
+
+	if account == nil {
+		log.Infof("User %s does not have an account", userID)
+		return false
+	}
+
+	amount, err := currency.NewFromString(strAmount)
+	if err != nil {
+		log.Error("Failed to parse currency")
+		return false
+	}
+	err = account.RemoveFunds(amount)
+	if err != nil {
+		log.Errorf("User had insufficient funds to set buy amount of %s", amount)
+		return false
+	}
+	autoBuyRequestStore.AddAutorequest(stock, cmd.UserID, amount)
+	log.Infof("User %s set automated buy amount for %s dollars of stock %s", userID, amount, stock)
+	return true
+}
+
+func executeSetSellAmount(cmd command) bool {
+	userID := cmd.UserID
+	strAmount := cmd.Args[1]
+	stock := cmd.Args[0]
+	account := accountStore.GetAccount(userID)
+
+	if account == nil {
+		log.Infof("User %s does not have an account", userID)
+		return false
+	}
+
+	amount, err := currency.NewFromString(strAmount)
+	if err != nil {
+		log.Error("Failed to parse currency")
+		return false
+	}
+	autoSellRequestStore.AddAutorequest(stock, userID, amount)
+	log.Infof("User %s set automated sell amount for %s dollars of stock %s", userID, amount, stock)
+	return true
+}
+
+func executeCancelSetBuy(cmd command) bool {
+	userID := cmd.UserID
+	stock := cmd.Args[0]
+	account := accountStore.GetAccount(userID)
+
+	if account == nil {
+		log.Infof("User %s does not have an account", userID)
+		return false
+	}
+
+	refundCurrency, err := autoBuyRequestStore.CancelAutorequest(stock, userID)
+	if err != nil {
+		log.Infof("Automated buy for stock %s was not found for user %s", stock, userID)
+	} else {
+		log.Infof("User %s cancelled automated buy for %s", userID, stock)
+		account.AddFunds(refundCurrency)
+	}
+	return true
+}
+
+func executeCancelSetSell(cmd command) bool {
+	userID := cmd.UserID
+	stock := cmd.Args[0]
+	account := accountStore.GetAccount(userID)
+
+	if account == nil {
+		log.Infof("User %s does not have an account", userID)
+		return false
+	}
+	_, err := autoSellRequestStore.CancelAutorequest(stock, userID)
+	if err != nil {
+		log.Infof("Automated sell for stock %s was not found for user %s", stock, userID)
+	} else {
+		//TODO, refund users stock.  We have to wait on the triggers for this
+		log.Infof("User %s cancelled automated sell for %s", userID, stock)
+	}
 	return true
 }
