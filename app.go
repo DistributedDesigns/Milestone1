@@ -450,7 +450,6 @@ func executeCancelSell(cmd command) bool {
 	return true
 }
 
-
 func executeSetBuyAmount(cmd command) bool{
 	account := accountStore.GetAccount(cmd.UserID)
 
