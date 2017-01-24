@@ -471,7 +471,7 @@ func executeSetBuyAmount(cmd command) bool {
 		log.Error("User had insufficient funds to set buy amount of %s", amount)
 		return false
 	}
-	autoBuyRequestStore.AddAutorequest(cmd.Args[0], cmd.UserID, amount)
+	autoBuyRequestStore.AddAutorequest(stock, cmd.UserID, amount)
 	log.Infof("User %s set automated buy amount for %s dollars of stock %s", userID, amount, stock)
 	return true
 }
@@ -507,8 +507,8 @@ func executeCancelSetBuy(cmd command) bool {
 		return false
 	}
 
-	refund := autoBuyRequestStore.CancelAutorequest(stock, userID)
-	if refund == -1.0{
+	refund, err := autoBuyRequestStore.CancelAutorequest(stock, userID)
+	if err != nil {
 		log.Infof("Automated buy for stock %s was not found for user %s", stock, userID)
 	} else {
 		log.Infof("User %s cancelled automated buy for %s", userID, stock)
@@ -527,8 +527,8 @@ func executeCancelSetSell(cmd command) bool {
 		log.Infof("User %s does not have an account", userID)
 		return false
 	}
-	refund := autoSellRequestStore.CancelAutorequest(stock, userID)
-	if refund == -1.0{
+	_, err := autoSellRequestStore.CancelAutorequest(stock, userID)
+	if err != nil {
 		log.Infof("Automated sell for stock %s was not found for user %s", stock, userID)
 	} else {
 		//TODO, refund users stock.  We have to wait on the triggers for this
