@@ -2,19 +2,20 @@ package autorequests
 
 import (
 	"errors"
+
 	"github.com/distributeddesigns/currency"
 
 	"github.com/op/go-logging"
 )
 
 var (
-	log = logging.MustGetLogger("audit")
+	consoleLog = logging.MustGetLogger("console")
 )
 
 // AutoRequest :  A buy or sell request for a user
-type AutoRequest struct{ 
-	Amount currency.Currency
-	Trigger currency.Currency 
+type AutoRequest struct {
+	Amount  currency.Currency
+	Trigger currency.Currency
 }
 
 // AutoRequestStore : Map stock -> user -> request
@@ -49,13 +50,13 @@ func (ars *AutoRequestStore) AddAutorequest(stock, userID string, amount currenc
 	(*ars)[stock][userID] = request
 }
 
-func (ars *AutoRequestStore) CancelAutorequest(stock, userID string) (currency.Currency, error){
+func (ars *AutoRequestStore) CancelAutorequest(stock, userID string) (currency.Currency, error) {
 	if _, found := (*ars)[stock][userID]; found {
 		delete((*ars)[stock], userID)
 		refundAmount := (*ars)[stock][userID].Amount.ToFloat()
 		theCurrency, err := currency.NewFromFloat(refundAmount)
 		if err != nil {
-			log.Error("Unable to create currency")
+			consoleLog.Error("Unable to create currency")
 		}
 		return theCurrency, nil
 	}
