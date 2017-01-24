@@ -170,6 +170,7 @@ func executeCommand(cmd command) error {
 		status = executeSetBuyTrigger(cmd)
 	case commands.SetSellTrigger:
 		status = executeSetSellTrigger(cmd)
+
 	default:
 		log.Warningf("Not implemented: %s", cmd.Name)
 		return nil
