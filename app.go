@@ -248,7 +248,7 @@ func executeQuote(cmd command) bool {
 
 	//Check auto buy sell
 
-	for _, v := range autoBuyRequestStore[stock] {
+	for _, v := range (*autoBuyRequestStore)[stock] {
 		//fmt.Printf("key[%s] value[%s]\n", k, v)
 		if v.Trigger.ToFloat() < quote.Price.ToFloat() {
 			//Fulfil buy action
@@ -259,7 +259,7 @@ func executeQuote(cmd command) bool {
 		}
 	}
 
-	for _, v := range autoSellRequestStore[stock] {
+	for _, v := range (*autoSellRequestStore)[stock] {
 		//fmt.Printf("key[%s] value[%s]\n", k, v)
 		if v.Trigger.ToFloat() > quote.Price.ToFloat() {
 			//Fulfil buy action

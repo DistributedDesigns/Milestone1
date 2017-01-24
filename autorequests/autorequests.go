@@ -12,7 +12,7 @@ type AutoRequest struct{
 }
 
 // AutoRequestStore : Map stock -> user -> request
-type AutoRequestStore map[string](map[string]AutoRequest)
+type AutoRequestStore map[string]map[string]AutoRequest
 
 // NewAutoRequestStore :
 func NewAutoRequestStore() *AutoRequestStore {
