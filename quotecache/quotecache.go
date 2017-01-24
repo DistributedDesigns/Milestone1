@@ -104,6 +104,9 @@ func getQuoteServAddress() string {
 }
 
 func parseQuote(s string) (Quote, error) {
+	// The quoteserver sends back a messy response, with linebreaks.
+	s = strings.TrimSpace(s)
+
 	parts := strings.Split(s, ",")
 
 	// Does the response have all the parts we need?
