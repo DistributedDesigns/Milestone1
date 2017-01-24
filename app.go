@@ -166,6 +166,11 @@ func executeCommand(cmd command) error {
 		status = executeCancelSetBuy(cmd)
 	case commands.CancelSetSell:
 		status = executeCancelSetSell(cmd)
+	case commands.SetBuyTrigger:
+		status = executeSetBuyTrigger(cmd)
+	case commands.SetSellTrigger:
+		status = executeSetSellTrigger(cmd)
+
 	default:
 		log.Warningf("Not implemented: %s", cmd.Name)
 		return nil
@@ -228,6 +233,8 @@ func executeAdd(cmd command) bool {
 func executeQuote(cmd command) bool {
 	// Get the stock from the command
 	stock := cmd.Args[0]
+	account := accountStore.GetAccount(cmd.UserID)
+
 	if stock == "" {
 		log.Error("No stock passed to QUOTE")
 		return false
@@ -238,6 +245,37 @@ func executeQuote(cmd command) bool {
 	if err != nil {
 		log.Error(err.Error())
 		return false
+	}
+
+	//Check auto buy sell
+
+	for _, v := range (*autoBuyRequestStore)[stock] {
+		//fmt.Printf("key[%s] value[%s]\n", k, v)
+		if v.Trigger.ToFloat() <= quote.Price.ToFloat() {
+			//Fulfil buy action
+			wholeShares, cashRemainder := quote.Price.FitsInto(v.Amount)
+			if wholeShares == 0 {
+				continue
+			}
+			account.AddStockToPortfolio(stock, wholeShares)
+			account.AddFunds(cashRemainder)
+			log.Infof("Buy trigger fired for stock %s at price %s for user %s", stock, quote.Price, cmd.UserID)
+		}
+	}
+
+	for _, v := range (*autoSellRequestStore)[stock] {
+		//fmt.Printf("key[%s] value[%s]\n", k, v)
+		if v.Trigger.ToFloat() >= quote.Price.ToFloat() {
+			//Fulfil buy action
+			wholeShares, cashRemainder := quote.Price.FitsInto(v.Amount)
+			if !account.RemoveStockFromPortfolio(stock, wholeShares) {
+				log.Infof("User does not have enough stock to sell")
+				continue
+			}
+			v.Amount.Sub(cashRemainder)
+			account.AddFunds(v.Amount)
+			log.Infof("Sell trigger fired for stock %s at price %s for user %s", stock, quote.Price, cmd.UserID)
+		}
 	}
 
 	log.Noticef("Got quote: %+v", quote)
@@ -533,5 +571,108 @@ func executeCancelSetSell(cmd command) bool {
 		//TODO, refund users stock.  We have to wait on the triggers for this
 		log.Infof("User %s cancelled automated sell for %s", userID, stock)
 	}
+	return true
+}
+
+func executeSetBuyTrigger(cmd command) bool {
+	//Check that a sell amount exists in the store
+
+	userID := cmd.UserID
+	stock := cmd.Args[0]
+	strAmount := cmd.Args[1]
+
+	account := accountStore.GetAccount(userID);
+
+	if account == nil {
+		log.Infof("User %s does not have an account", userID)
+		return false
+	}
+
+	stockTriggerCost, err := currency.NewFromString(strAmount)
+
+	if err != nil {
+		log.Error("Failed to parse currency")
+		return false
+	}
+
+	userAutorequest, err := autoBuyRequestStore.GetAutorequest(stock, userID)
+
+	if err != nil {
+		log.Infof("User %s does not have an auto request pending", userID)
+		return false
+	}
+
+	stockTotalValue := userAutorequest.Amount
+
+	wholeShares, cashRemainder := stockTriggerCost.FitsInto(stockTotalValue)
+
+	if wholeShares == 0 {
+		log.Notice("Amount specified to buy less than single stock unit")
+		return true
+	}
+
+	log.Infof("User %s set purchase order for %d shares of stock %s", cmd.UserID, wholeShares, stock)
+
+	// Remove the funds from user now to prevent double spending
+	stockTotalValue.Sub(cashRemainder)
+	account.RemoveFunds(stockTotalValue)
+
+	userAutorequest.Trigger = stockTriggerCost
+
+	// Add stocks to user portfolio
+
+	return true
+}
+
+
+func executeSetSellTrigger(cmd command) bool {
+	//Check that a sell amount exists in the store
+	userID := cmd.UserID
+	stock := cmd.Args[0]
+	strAmount := cmd.Args[1]
+
+	account := accountStore.GetAccount(userID);
+
+	if account == nil {
+		log.Infof("User %s does not have an account", userID)
+		return false
+	}
+
+	stockTriggerCost, err := currency.NewFromString(strAmount)
+
+	if err != nil {
+		log.Error("Failed to parse currency")
+		return false
+	}
+
+
+	userAutorequest, err := autoSellRequestStore.GetAutorequest(stock, userID)
+
+	if err != nil {
+		log.Infof("User %s does not have an auto request pending", userID)
+		return false
+	}
+
+	stockTotalValue := userAutorequest.Amount
+
+	wholeShares, cashRemainder := stockTriggerCost.FitsInto(stockTotalValue)
+
+	if wholeShares == 0 {
+		log.Notice("Amount specified to buy less than single stock unit")
+		return true
+	}
+
+	log.Infof("User %s set purchase order for %d shares of stock %s", cmd.UserID, wholeShares, stock)
+
+	// Remove the funds from user now to prevent double spending
+	stockTotalValue.Sub(cashRemainder)
+	account.AddFunds(stockTotalValue)
+
+	userAutorequest.Trigger = stockTriggerCost
+
+	// Remove stocks from user portfolio
+
+	account.RemoveStockFromPortfolio(stock, wholeShares)
+
 	return true
 }
