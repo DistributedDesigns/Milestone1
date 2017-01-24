@@ -12,3 +12,6 @@ go_import_path: github.com/distributeddesigns/milestone1
 install:
   - go get
   - go build .
+
+notifications:
+  email: false
