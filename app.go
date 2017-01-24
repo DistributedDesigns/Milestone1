@@ -250,9 +250,12 @@ func executeQuote(cmd command) bool {
 
 	for _, v := range (*autoBuyRequestStore)[stock] {
 		//fmt.Printf("key[%s] value[%s]\n", k, v)
-		if v.Trigger.ToFloat() < quote.Price.ToFloat() {
+		if v.Trigger.ToFloat() <= quote.Price.ToFloat() {
 			//Fulfil buy action
 			wholeShares, cashRemainder := quote.Price.FitsInto(v.Amount)
+			if wholeShares == 0 {
+				continue
+			}
 			account.AddStockToPortfolio(stock, wholeShares)
 			account.AddFunds(cashRemainder)
 			log.Infof("Buy trigger fired for stock %s at price %s for user %s", stock, quote.Price, cmd.UserID)
@@ -261,10 +264,13 @@ func executeQuote(cmd command) bool {
 
 	for _, v := range (*autoSellRequestStore)[stock] {
 		//fmt.Printf("key[%s] value[%s]\n", k, v)
-		if v.Trigger.ToFloat() > quote.Price.ToFloat() {
+		if v.Trigger.ToFloat() >= quote.Price.ToFloat() {
 			//Fulfil buy action
 			wholeShares, cashRemainder := quote.Price.FitsInto(v.Amount)
-			account.RemoveStockFromPortfolio(stock, wholeShares)
+			if !account.RemoveStockFromPortfolio(stock, wholeShares) {
+				log.Infof("User does not have enough stock to sell")
+				continue
+			}
 			v.Amount.Sub(cashRemainder)
 			account.AddFunds(v.Amount)
 			log.Infof("Sell trigger fired for stock %s at price %s for user %s", stock, quote.Price, cmd.UserID)
@@ -592,7 +598,7 @@ func executeSetBuyTrigger(cmd command) bool {
 	userAutorequest, err := autoBuyRequestStore.GetAutorequest(stock, userID)
 
 	if err != nil {
-		log.Info("User %s does not have an auto request pending")
+		log.Infof("User %s does not have an auto request pending", userID)
 		return false
 	}
 
@@ -643,7 +649,7 @@ func executeSetSellTrigger(cmd command) bool {
 	userAutorequest, err := autoSellRequestStore.GetAutorequest(stock, userID)
 
 	if err != nil {
-		log.Info("User %s does not have an auto request pending")
+		log.Infof("User %s does not have an auto request pending", userID)
 		return false
 	}
 
