@@ -39,19 +39,17 @@ func (ars *AutoRequestStore) AddAutorequest(stock, userID string, amount currenc
 	(*ars)[stock][userID] = request
 }
 
-func (ars *AutoRequestStore) CancelAutorequest(stock, userID string) bool{
+func (ars *AutoRequestStore) CancelAutorequest(stock, userID string) float{
 	if _, found := (*ars)[stock][userID]; found {
 		delete((*ars)[stock], userID)
-		return true
+		refundAmount := (*ars)[stock][userID].Amount.ToFloat()
+		return refundAmount
 	} else {
-		return false
+		return -1.0
 	}
 }
 
-func (ars *AutoRequestStore) FindAutorequest(stock, userID string, amount currency.Currency) bool{
-	if _, found := (*ars)[stock][userID]; found {
-		return true
-	} else {
-		return false
-	}
+func (ars *AutoRequestStore) AutorequestExists(stock, userID string, amount currency.Currency) bool{
+	found := (*ars)[stock][userID]; found {
+	return found
 }

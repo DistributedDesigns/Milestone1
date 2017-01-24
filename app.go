@@ -450,17 +450,19 @@ func executeCancelSell(cmd command) bool {
 	return true
 }
 
-func executeSetBuyAmount(cmd command) bool{
-	account := accountStore.GetAccount(cmd.UserID)
+func executeSetBuyAmount(cmd command) bool {
+	userID := cmd.UserID
+	strAmount = cmd.Args[1]
+	stock := cmd.Args[0]
+	account := accountStore.GetAccount(userID)
 
 	if account == nil {
-		log.Infof("User %s does not have an account", cmd.UserID)
+		log.Infof("User %s does not have an account", userID)
 		return false
 	}
 
-	amount, err := currency.NewFromString(cmd.Args[1])
+	amount, err := currency.NewFromString(strAmount)
 	if err != nil {
-		// Bail on parse failure
 		log.Error("Failed to parse currency")
 		return false
 	}
@@ -470,60 +472,66 @@ func executeSetBuyAmount(cmd command) bool{
 		return false
 	}
 	autoBuyRequestStore.AddAutorequest(cmd.Args[0], cmd.UserID, amount)
-	log.Infof("User %s set automated buy amount for %s dollars of stock %s", cmd.UserID, amount, cmd.Args[0])
+	log.Infof("User %s set automated buy amount for %s dollars of stock %s", userID, amount, stock)
 	return true
 }
 
-func executeSetSellAmount(cmd command) bool{
-	account := accountStore.GetAccount(cmd.UserID)
+func executeSetSellAmount(cmd command) bool {
+	userID := cmd.UserID
+	strAmount = cmd.Args[1]
+	stock := cmd.Args[0]
+	account := accountStore.GetAccount(userID)
 
 	if account == nil {
-		log.Infof("User %s does not have an account", cmd.UserID)
+		log.Infof("User %s does not have an account", userID)
 		return false
 	}
 
-	amount, err := currency.NewFromString(cmd.Args[1])
+	amount, err := currency.NewFromString(strAmount)
 	if err != nil {
-		// Bail on parse failure
 		log.Error("Failed to parse currency")
 		return false
 	}
-	account.AddFunds(amount)
-	autoSellRequestStore.AddAutorequest(cmd.Args[0], cmd.UserID, amount)
-	log.Infof("User %s set automated sell amount for %s dollars of stock %s", cmd.UserID, amount, cmd.Args[0])
+	autoSellRequestStore.AddAutorequest(stock, userID, amount)
+	log.Infof("User %s set automated sell amount for %s dollars of stock %s", userID, amount, stock)
 	return true
 }
 
-func executeCancelSetBuy(cmd command) bool{
-	account := accountStore.GetAccount(cmd.UserID)
+func executeCancelSetBuy(cmd command) bool {
+	userID := cmd.UserID
+	stock := cmd.Args[0]
+	account := accountStore.GetAccount(userID)
 
 	if account == nil {
-		log.Infof("User %s does not have an account", cmd.UserID)
+		log.Infof("User %s does not have an account", userID)
 		return false
 	}
 
-	success := autoBuyRequestStore.CancelAutorequest(cmd.Args[0], cmd.UserID)
-	if success{
-		log.Infof("User %s cancelled automated buy for %s", cmd.UserID, cmd.Args[0])
+	refund := autoBuyRequestStore.CancelAutorequest(stock, userID)
+	if refund == -1.0{
+		log.Infof("Automated buy for stock %s was not found for user %s", stock, userID)
 	} else {
-		log.Infof("Automated buy for stock %s was not found for user %s", cmd.Args[0], cmd.UserID)
+		log.Infof("User %s cancelled automated buy for %s", userID, stock)
+		account.AddFunds(Currency.NewFromFloat(refund))
 	}
 	return true
 }
 
-func executeCancelSetSell(cmd command) bool{
-	account := accountStore.GetAccount(cmd.UserID)
+func executeCancelSetSell(cmd command) bool {
+	userID := cmd.UserID
+	stock := cmd.Args[0]
+	account := accountStore.GetAccount(userID)
 
 	if account == nil {
-		log.Infof("User %s does not have an account", cmd.UserID)
+		log.Infof("User %s does not have an account", userID)
 		return false
 	}
-
-	success := autoSellRequestStore.CancelAutorequest(cmd.Args[0], cmd.UserID)
-	if success{
-		log.Infof("User %s cancelled automated sell for %s", cmd.UserID, cmd.Args[0])
+	refund := autoSellRequestStore.CancelAutorequest(stock, userID)
+	if refund == -1.0{
+		log.Infof("Automated sell for stock %s was not found for user %s", stock, userID)
 	} else {
-		log.Infof("Automated sell for stock %s was not found for user %s", cmd.Args[0], cmd.UserID)
+		//TODO, refund users stock.  We have to wait on the triggers for this
+		log.Infof("User %s cancelled automated sell for %s", userID, stock)
 	}
 	return true
 }
