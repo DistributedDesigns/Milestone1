@@ -54,7 +54,15 @@ func (ars *AutoRequestStore) CancelAutorequest(stock, userID string) (float64, e
 	}
 }
 
-func (ars *AutoRequestStore) AutorequestExists(stock, userID string, amount currency.Currency) bool{
+func (ars *AutoRequestStore) AutorequestExists(stock, userID string) bool {
 	_, found := (*ars)[stock][userID]
 	return found
+}
+
+func (ars *AutoRequestStore) GetAutorequest(stock, userID string) (AutoRequest, error) {
+	userAutoRequest, found := (*ars)[stock][userID]
+	if found {
+		return userAutoRequest, nil
+	}
+	return nil, errors.New("No auto request")
 }

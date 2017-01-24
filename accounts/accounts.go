@@ -169,3 +169,4 @@ func (act *Action) IsExpired() bool {
 	expiry := act.Time.Add(time.Second * 60)
 	return time.Now().After(expiry)
 }
+

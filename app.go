@@ -15,6 +15,7 @@ import (
 	"github.com/distributeddesigns/milestone1/commands"
 	"github.com/distributeddesigns/milestone1/quotecache"
 	"github.com/distributeddesigns/milestone1/autorequests"
+	"github.com/distributeddesigns/milestone1/triggers"
 )
 
 // Globals
@@ -26,6 +27,7 @@ var (
 	accountStore = accounts.NewAccountStore()
 	autoBuyRequestStore = autorequests.NewAutoRequestStore()
 	autoSellRequestStore = autorequests.NewAutoRequestStore()
+	triggerStore = triggers.NewTriggerStore()
 )
 
 // I suck at namespacing and don't want to type commands.Command over and over
@@ -166,6 +168,10 @@ func executeCommand(cmd command) error {
 		status = executeCancelSetBuy(cmd)
 	case commands.CancelSetSell:
 		status = executeCancelSetSell(cmd)
+	case commands.SetBuyTrigger:
+		status = executeSetBuyTrigger(cmd)
+	case commands.SetSellTrigger:
+		status = executeSetSellTrigger(cmd)
 	default:
 		log.Warningf("Not implemented: %s", cmd.Name)
 		return nil
@@ -535,4 +541,88 @@ func executeCancelSetSell(cmd command) bool {
 		log.Infof("User %s cancelled automated sell for %s", userID, stock)
 	}
 	return true
+}
+
+func executeSetBuyTrigger(cmd command) bool {
+	//Check that a sell amount exists in the store
+
+	userID := cmd.UserID
+	stock := cmd.Args[0]
+	strAmount := cmd.Args[1]
+
+	account := accountStore.GetAccount(userID);
+
+	if account == nil {
+		log.Infof("User %s does not have an account", userID)
+		return false
+	}
+
+	stockCost, err := currency.NewFromString(strAmount)
+
+	if err != nil {
+		log.Error("Failed to parse currency")
+		return false
+	}
+
+	userAutorequest, err := autoBuyRequestStore.GetAutorequest(stock, userID)
+
+	if err != nil {
+		log.Info("User %s does not have an auto request pending")
+		return false
+	}
+
+
+
+
+	return true
+}
+
+
+func executeSetSellTrigger(cmd command) bool {
+	//Check that a sell amount exists in the store
+	userID := cmd.UserID
+	stock := cmd.Args[0]
+	strAmount := cmd.Args[1]
+
+	account := accountStore.GetAccount(userID);
+
+	if account == nil {
+		log.Infof("User %s does not have an account", userID)
+		return false
+	}
+
+	stockTriggerCost, err := currency.NewFromString(strAmount)
+
+	if err != nil {
+		log.Error("Failed to parse currency")
+		return false
+	}
+
+
+	userAutorequest, err := autoBuyRequestStore.GetAutorequest(stock, userID)
+
+	if err != nil {
+		log.Info("User %s does not have an auto request pending")
+		return false
+	}
+
+	stockTotalValue := userAutorequest.Amount
+
+	wholeShares, cashRemainder := stockTriggerCost.FitsInto(stockTotalValue)
+
+	if wholeShares == 0 {
+		log.Notice("Amount specified to buy less than single stock unit")
+		return true
+	}
+
+	log.Infof("User %s set purchase order for %d shares of stock %s", cmd.UserID, wholeShares, stock)
+
+	// Remove the funds from user now to prevent double spending
+	stockTotalValue.Sub(cashRemainder)
+	account.RemoveFunds(stockTotalValue)
+
+	//add to the triggers
+
+
+	return triggerStore.CreateNewTrigger(stock, userID, stockTriggerCost)
 }
