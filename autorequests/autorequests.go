@@ -64,5 +64,5 @@ func (ars *AutoRequestStore) GetAutorequest(stock, userID string) (AutoRequest, 
 	if found {
 		return userAutoRequest, nil
 	}
-	return nil, errors.New("No auto request")
+	return AutoRequest{}, errors.New("No auto request")
 }

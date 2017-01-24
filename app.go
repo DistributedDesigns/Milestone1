@@ -15,7 +15,6 @@ import (
 	"github.com/distributeddesigns/milestone1/commands"
 	"github.com/distributeddesigns/milestone1/quotecache"
 	"github.com/distributeddesigns/milestone1/autorequests"
-	"github.com/distributeddesigns/milestone1/triggers"
 )
 
 // Globals
@@ -27,7 +26,6 @@ var (
 	accountStore = accounts.NewAccountStore()
 	autoBuyRequestStore = autorequests.NewAutoRequestStore()
 	autoSellRequestStore = autorequests.NewAutoRequestStore()
-	triggerStore = triggers.NewTriggerStore()
 )
 
 // I suck at namespacing and don't want to type commands.Command over and over
