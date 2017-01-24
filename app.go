@@ -12,9 +12,9 @@ import (
 	"github.com/op/go-logging"
 
 	"github.com/distributeddesigns/milestone1/accounts"
+	"github.com/distributeddesigns/milestone1/autorequests"
 	"github.com/distributeddesigns/milestone1/commands"
 	"github.com/distributeddesigns/milestone1/quotecache"
-	"github.com/distributeddesigns/milestone1/autorequests"
 )
 
 // Globals
@@ -23,8 +23,8 @@ var (
 
 	logLevel = flag.String("loglevel", "WARNING", "CRITICAL, ERROR, WARNING,  NOTICE, INFO, DEBUG")
 
-	accountStore = accounts.NewAccountStore()
-	autoBuyRequestStore = autorequests.NewAutoRequestStore()
+	accountStore         = accounts.NewAccountStore()
+	autoBuyRequestStore  = autorequests.NewAutoRequestStore()
 	autoSellRequestStore = autorequests.NewAutoRequestStore()
 )
 
