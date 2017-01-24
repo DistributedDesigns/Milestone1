@@ -1,11 +1,15 @@
 package autorequests
 
 import (
+	"errors"
 	"github.com/distributeddesigns/currency"
 )
 
 // AutoRequest :  A buy or sell request for a user
-type AutoRequest struct{ Amount, Trigger currency.Currency }
+type AutoRequest struct{ 
+	Amount currency.Currency
+	Trigger currency.Currency 
+}
 
 // AutoRequestStore : Map stock -> user -> request
 type AutoRequestStore map[string](map[string]AutoRequest)
@@ -39,13 +43,14 @@ func (ars *AutoRequestStore) AddAutorequest(stock, userID string, amount currenc
 	(*ars)[stock][userID] = request
 }
 
-func (ars *AutoRequestStore) CancelAutorequest(stock, userID string) float64{
+func (ars *AutoRequestStore) CancelAutorequest(stock, userID string) (float64, error){
 	if _, found := (*ars)[stock][userID]; found {
 		delete((*ars)[stock], userID)
 		refundAmount := (*ars)[stock][userID].Amount.ToFloat()
-		return refundAmount
+		return refundAmount, nil
 	} else {
-		return -1.0
+		errMsg := "No request found for stock" + stock + "for user" + userID
+		return 0.0, errors.New(errMsg)
 	}
 }
 
