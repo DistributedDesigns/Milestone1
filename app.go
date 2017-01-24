@@ -14,7 +14,7 @@ import (
 	"github.com/distributeddesigns/milestone1/accounts"
 	"github.com/distributeddesigns/milestone1/commands"
 	"github.com/distributeddesigns/milestone1/quotecache"
-	"github.com/distributeddesigns/Milestone1/autorequests"
+	"github.com/distributeddesigns/milestone1/autorequests"
 )
 
 // Globals
