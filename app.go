@@ -557,7 +557,7 @@ func executeSetBuyTrigger(cmd command) bool {
 		return false
 	}
 
-	stockCost, err := currency.NewFromString(strAmount)
+	stockTriggerCost, err := currency.NewFromString(strAmount)
 
 	if err != nil {
 		log.Error("Failed to parse currency")
@@ -571,8 +571,25 @@ func executeSetBuyTrigger(cmd command) bool {
 		return false
 	}
 
+	stockTotalValue := userAutorequest.Amount
 
+	wholeShares, cashRemainder := stockTriggerCost.FitsInto(stockTotalValue)
 
+	if wholeShares == 0 {
+		log.Notice("Amount specified to buy less than single stock unit")
+		return true
+	}
+
+	log.Infof("User %s set purchase order for %d shares of stock %s", cmd.UserID, wholeShares, stock)
+
+	// Remove the funds from user now to prevent double spending
+	stockTotalValue.Sub(cashRemainder)
+	account.RemoveFunds(stockTotalValue)
+
+	userAutorequest.Trigger = stockTriggerCost
+
+	// Add stocks to user portfolio
+	account.AddStockToPortfolio(stock, wholeShares)
 
 	return true
 }
@@ -599,7 +616,7 @@ func executeSetSellTrigger(cmd command) bool {
 	}
 
 
-	userAutorequest, err := autoBuyRequestStore.GetAutorequest(stock, userID)
+	userAutorequest, err := autoSellRequestStore.GetAutorequest(stock, userID)
 
 	if err != nil {
 		log.Info("User %s does not have an auto request pending")
@@ -619,10 +636,13 @@ func executeSetSellTrigger(cmd command) bool {
 
 	// Remove the funds from user now to prevent double spending
 	stockTotalValue.Sub(cashRemainder)
-	account.RemoveFunds(stockTotalValue)
+	account.AddFunds(stockTotalValue)
 
-	//add to the triggers
+	userAutorequest.Trigger = stockTriggerCost
 
+	// Remove stocks from user portfolio
 
-	return triggerStore.CreateNewTrigger(stock, userID, stockTriggerCost)
+	account.RemoveStockFromPortfolio(stock, wholeShares)
+
+	return true
 }
