@@ -3,6 +3,12 @@ package autorequests
 import (
 	"errors"
 	"github.com/distributeddesigns/currency"
+
+	"github.com/op/go-logging"
+)
+
+var (
+	log = logging.MustGetLogger("audit")
 )
 
 // AutoRequest :  A buy or sell request for a user
@@ -21,7 +27,7 @@ func NewAutoRequestStore() *AutoRequestStore {
 	return &ars
 }
 
-// AddBuyAmount :
+// AddAutorequest :
 func (ars *AutoRequestStore) AddAutorequest(stock, userID string, amount currency.Currency) {
 	// Initialize the new user -> request map if don't find
 	// any entries for the stock in the store
@@ -43,15 +49,18 @@ func (ars *AutoRequestStore) AddAutorequest(stock, userID string, amount currenc
 	(*ars)[stock][userID] = request
 }
 
-func (ars *AutoRequestStore) CancelAutorequest(stock, userID string) (float64, error){
+func (ars *AutoRequestStore) CancelAutorequest(stock, userID string) (currency.Currency, error){
 	if _, found := (*ars)[stock][userID]; found {
 		delete((*ars)[stock], userID)
 		refundAmount := (*ars)[stock][userID].Amount.ToFloat()
-		return refundAmount, nil
-	} else {
-		errMsg := "No request found for stock" + stock + "for user" + userID
-		return 0.0, errors.New(errMsg)
+		theCurrency, err := currency.NewFromFloat(refundAmount)
+		if err != nil {
+			log.Error("Unable to create currency")
+		}
+		return theCurrency, nil
 	}
+	errMsg := "No request found for stock " + stock + " for user " + userID
+	return currency.Currency{}, errors.New(errMsg)
 }
 
 func (ars *AutoRequestStore) AutorequestExists(stock, userID string, amount currency.Currency) bool{

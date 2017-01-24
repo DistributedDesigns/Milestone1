@@ -468,7 +468,7 @@ func executeSetBuyAmount(cmd command) bool {
 	}
 	err = account.RemoveFunds(amount)
 	if err != nil {
-		log.Error("User had insufficient funds to set buy amount of %s", amount)
+		log.Errorf("User had insufficient funds to set buy amount of %s", amount)
 		return false
 	}
 	autoBuyRequestStore.AddAutorequest(stock, cmd.UserID, amount)
@@ -507,12 +507,11 @@ func executeCancelSetBuy(cmd command) bool {
 		return false
 	}
 
-	refund, err := autoBuyRequestStore.CancelAutorequest(stock, userID)
+	refundCurrency, err := autoBuyRequestStore.CancelAutorequest(stock, userID)
 	if err != nil {
 		log.Infof("Automated buy for stock %s was not found for user %s", stock, userID)
 	} else {
 		log.Infof("User %s cancelled automated buy for %s", userID, stock)
-		refundCurrency, _ := currency.NewFromFloat(refund) //should never error, so squelched the error
 		account.AddFunds(refundCurrency)
 	}
 	return true
