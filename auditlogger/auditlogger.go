@@ -131,7 +131,7 @@ func LogCommand(cmd commands.Command) {
 		}
 	}
 
-	timeInMillisec := time.Now().Unix() * 1000
+	timeInMillisec := time.Now().UnixNano() / 1000
 
 	xmlElement := fmt.Sprintf(`
 	<userCommand>
