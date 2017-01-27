@@ -50,6 +50,7 @@ func (ars *AutoRequestStore) AddAutorequest(stock, userID string, amount currenc
 	(*ars)[stock][userID] = request
 }
 
+// CancelAutorequest :
 func (ars *AutoRequestStore) CancelAutorequest(stock, userID string) (currency.Currency, error) {
 	if _, found := (*ars)[stock][userID]; found {
 		delete((*ars)[stock], userID)
@@ -64,11 +65,13 @@ func (ars *AutoRequestStore) CancelAutorequest(stock, userID string) (currency.C
 	return currency.Currency{}, errors.New(errMsg)
 }
 
+// AutorequestExists :
 func (ars *AutoRequestStore) AutorequestExists(stock, userID string) bool {
 	_, found := (*ars)[stock][userID]
 	return found
 }
 
+// GetAutorequest :
 func (ars *AutoRequestStore) GetAutorequest(stock, userID string) (AutoRequest, error) {
 	userAutoRequest, found := (*ars)[stock][userID]
 	if found {
