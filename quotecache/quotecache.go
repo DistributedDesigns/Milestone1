@@ -12,15 +12,18 @@ import (
 	"time"
 
 	"github.com/distributeddesigns/currency"
+
+	"github.com/distributeddesigns/milestone1/auditlogger"
 )
 
 // Quote : Stored response from the quoteserver
 type Quote struct {
-	UserID    string
-	Stock     string
-	Price     currency.Currency
-	Timestamp time.Time
-	Cryptokey string
+	UserID        string
+	Stock         string
+	Price         currency.Currency
+	Timestamp     time.Time
+	Cryptokey     string
+	TransactionID int
 }
 
 // IsExpired : True if the quotes timestamp is older than its validity window
@@ -33,7 +36,7 @@ func (q Quote) IsExpired() bool {
 var quoteCache = make(map[string]map[string]Quote)
 
 // GetQuote : Gets the current value of the stock, hitting the local cache if it can.
-func GetQuote(userID, stock string) (Quote, error) {
+func GetQuote(userID, stock string, transactionID int) (Quote, error) {
 	// check if the value is in cache
 
 	var userQuote Quote
@@ -45,13 +48,41 @@ func GetQuote(userID, stock string) (Quote, error) {
 	}
 	//Failed to get from cache, go do it outselves.
 
-	//get it from the quote server
+	// get it from the quote server
 	err := updateQuoteCache(userID, stock)
 	if err != nil {
 		return Quote{}, err
 	}
 
+	// Tag the quote with the transaction that caused the server hit.
+	//
+	// We have to get the new quote, modify it and write it back to the
+	// cache because... go doesn't like accessing properties of indexed
+	// items :p. The alternative is pass the transaction ID all the way
+	// down to parseQuote() but that's way too deep.
 	userQuote = quoteCache[stock][userID]
+	userQuote.TransactionID = transactionID
+	quoteCache[stock][userID] = userQuote
+
+	// Write the cache hit to the audit log
+	// FIXME : Should be able to pass Quote to logger.
+	xmlElement := fmt.Sprintf(`
+	<quoteServer>
+		<timestamp>%d</timestamp>
+		<server>QSRV1</server>
+		<transactionNum>%d</transactionNum>
+		<price>%.2f</price>
+		<stockSymbol>%s</stockSymbol>
+		<username>%s</username>
+		<quoteServerTime>%d</quoteServerTime>
+		<cryptokey>%s</cryptokey>
+	</quoteServer>`,
+		time.Now().Unix()*1000, transactionID, userQuote.Price.ToFloat(),
+		userQuote.Stock, userQuote.UserID, userQuote.Timestamp.Unix(),
+		userQuote.Cryptokey,
+	)
+
+	auditlogger.LogQuoteServerHit(xmlElement)
 
 	return userQuote, nil
 }
@@ -65,7 +96,7 @@ func updateQuoteCache(userID, stock string) error {
 	defer conn.Close()
 
 	// Send that request!
-	request := fmt.Sprintf("%s,%s", stock, userID)
+	request := fmt.Sprintf("%s,%s\n", stock, userID)
 	conn.Write([]byte(request))
 
 	// listen for response
