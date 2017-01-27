@@ -19,6 +19,26 @@ go run app.go ${workload file}
 ```
 You can get workload files from the [docs repo][docs] or the [project website][project-website].
 
+### Installing the linter
+[metalinter][metalinter] will be run by CI. You can run the linter locally to check for problems early.
+
+```shell
+go get -u github.com/alecthomas/gometalinter
+
+# Install all known linters
+$GOPATH/bin/gometalinter --install
+
+# Run the linter on all files the project
+$GOPATH/bin/gometalinter --config=.gometalinterrc ./...
+
+# Force gometalinter to pass before code is pushed to remote
+chmod +x githooks/pre-push
+ln -s $PWD/githooks/pre-push $PWD/.git/hooks/pre-push
+```
+
+### Never think about this again
+Use a plugin to run the linter whenever you save a file in your IDE. [Here's a list.][linter-plugins] The only command you'll need to pass to the linter is `--config=.gometalinterrc`, which tells the linter to use the referenced config file.
+
 ## Validating logs
 New logs for each run will be created in `./logs`. You can do partial validation for the schema using [logfile.xsd](./logfile.xsd) and `xmllint`.
 ```shell
@@ -30,3 +50,5 @@ Logfile troubleshooting is available on the [project website][logfile-faqs].
 [docs]: https://github.com/distributeddesigns/docs
 [project-website]: http://www.ece.uvic.ca/~seng462/ProjectWebSite/index.shtml
 [logfile-faqs]: http://www.ece.uvic.ca/~seng462/ProjectWebSite/ExampleLog.html
+[metalinter]: https://github.com/alecthomas/gometalinter
+[linter-plugins]: https://github.com/alecthomas/gometalinter#editor-integration

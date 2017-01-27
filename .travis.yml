@@ -9,9 +9,14 @@ go:
 # have changes from whatever is in a PR branch.
 go_import_path: github.com/distributeddesigns/milestone1
 
+before_install:
+  - go get -u github.com/alecthomas/gometalinter
+  - gometalinter --install
+
 install:
   - go get
   - go build .
+  - gometalinter --config=.gometalinterrc ./...
 
 notifications:
   email: false
